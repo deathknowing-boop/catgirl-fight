@@ -1,0 +1,2 @@
+// 道具小图（tools/g_props.py 生成，别手改）
+Object.assign(META.spr, {"p_basin": {"w": 364, "h": 225, "pad": 0, "ax": 0.5}, "p_basin2": {"w": 336, "h": 343, "pad": 0, "ax": 0.5}, "p_stamp": {"w": 284, "h": 333, "pad": 0, "ax": 0.5}, "p_mark": {"w": 294, "h": 292, "pad": 0, "ax": 0.5}, "p_rice": {"w": 312, "h": 354, "pad": 0, "ax": 0.5}, "p_adult_ds": {"w": 337, "h": 520, "pad": 0, "ax": 0.5}, "p_axe": {"w": 520, "h": 171, "pad": 0, "ax": 0.5}});

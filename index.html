@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>猫娘格斗：最后一碗白米饭｜网页版</title>
+<meta name="description" content="大模型萌娘二创格斗小游戏：九位猫娘抢最后一碗白米饭。打开即玩，手机横屏可玩，支持触屏按键。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="猫娘格斗：最后一碗白米饭">
+<meta property="og:description" content="大模型萌娘二创格斗小游戏，打开即玩，手机横屏也能搓招。作者：B 站 大肥鱼">
+<meta property="og:image" content="cover.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#05081c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="format-detection" content="telephone=no">
+<link rel="icon" href="icon.png">
+<style>
+  @font-face { font-family: 'NSC'; src: url('assets/fonts/NSC.ttf'); font-weight: 100 900; font-display: swap; }
+  @font-face { font-family: 'Outfit'; src: url('assets/fonts/Outfit.ttf'); font-weight: 100 900; font-display: swap; }
+  html, body { margin: 0; height: 100%; background: #05081c; overflow: hidden; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+  body { display: flex; align-items: center; justify-content: center; font-family: 'PingFang SC', 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif; color: #fff; }
+  canvas#c { width: min(100vw, calc(100vh * 16 / 9)); height: min(100vh, calc(100vw * 9 / 16)); display: block; background: #0C1650; outline: none; touch-action: none; }
+  #cover { position: fixed; inset: 0; z-index: 20; overflow-y: auto; -webkit-overflow-scrolling: touch; background: radial-gradient(ellipse at 50% 0%, #1f2f8a 0%, #0b1240 55%, #05081c 100%); }
+  #cover .wrap { max-width: 760px; margin: 0 auto; padding: max(18px, env(safe-area-inset-top)) 18px 28px; box-sizing: border-box; }
+  #cover h1 { margin: 6px 0 2px; font-size: clamp(26px, 6vw, 44px); letter-spacing: 2px; text-align: center; color: #FFE066; text-shadow: 0 3px 0 #b5442a, 0 0 18px rgba(255, 224, 102, .35); }
+  #cover .sub { text-align: center; color: #c9d4ff; font-size: 14px; margin-bottom: 10px; }
+  #cover img.hero { display: block; width: 100%; border-radius: 12px; box-shadow: 0 6px 24px rgba(0,0,0,.5); aspect-ratio: 16 / 9; object-fit: cover; background: #0C1650; }
+  .bar { height: 12px; background: rgba(255,255,255,.15); border-radius: 6px; overflow: hidden; margin: 14px 0 4px; }
+  .bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #FFE066, #ff8a3d); transition: width .2s; }
+  #ltxt { font-size: 13px; color: #c9d4ff; text-align: center; min-height: 18px; }
+  .row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 10px 0; align-items: center; font-size: 14px; }
+  .row b { color: #c9d4ff; font-weight: 600; }
+  .opt { padding: 7px 14px; border-radius: 18px; border: 1px solid #5b6bc0; background: rgba(255,255,255,.06); color: #fff; font-size: 14px; cursor: pointer; }
+  .opt.on { background: #FFE066; color: #3a2400; border-color: #FFE066; font-weight: 700; }
+  #go { display: block; margin: 12px auto 6px; padding: 13px 46px; font-size: 20px; font-weight: 800; border-radius: 30px; border: 0; background: linear-gradient(180deg, #ffd84d, #ff9a2e); color: #3a1a00; box-shadow: 0 4px 0 #b5552a; cursor: pointer; }
+  #go:disabled { filter: grayscale(.8); opacity: .6; cursor: wait; }
+  .card { background: rgba(8, 12, 48, .7); border: 1px solid rgba(120, 140, 255, .25); border-radius: 12px; padding: 10px 14px; margin: 12px 0; font-size: 13.5px; line-height: 1.7; color: #dfe6ff; }
+  .card h3 { margin: 2px 0 4px; font-size: 15px; color: #FFE066; }
+  .card kbd { display: inline-block; min-width: 1.3em; padding: 0 5px; border-radius: 4px; background: #24306e; border: 1px solid #4a5bb0; font-family: inherit; font-size: 12px; text-align: center; }
+  .fine { font-size: 12px; color: #8f9bd0; text-align: center; line-height: 1.7; margin-top: 10px; }
+  .fine b { color: #c9d4ff; }
+  /* 触屏按键 */
+  #pad { position: fixed; inset: 0; z-index: 10; pointer-events: none; display: none; }
+  #pad.on { display: block; }
+  #stick { position: absolute; left: 0; bottom: 0; width: 42vw; height: 62vh; pointer-events: auto; touch-action: none; }
+  #stickBase, #stickKnob { position: absolute; border-radius: 50%; pointer-events: none; transform: translate(-50%, -50%); }
+  #stickBase { width: 128px; height: 128px; background: rgba(255,255,255,.08); border: 2px solid rgba(255,255,255,.28); left: max(96px, calc(env(safe-area-inset-left) + 86px)); top: calc(100% - 100px); }
+  #stickKnob { width: 56px; height: 56px; background: rgba(255,224,102,.55); border: 2px solid rgba(255,255,255,.6); left: max(96px, calc(env(safe-area-inset-left) + 86px)); top: calc(100% - 100px); }
+  #btns { position: absolute; right: max(8px, env(safe-area-inset-right)); bottom: 8px; display: grid; grid-template-columns: repeat(4, 56px); grid-auto-rows: 56px; gap: 7px; pointer-events: auto; touch-action: none; }
+  .b { border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: #fff; background: rgba(30, 40, 110, .5); border: 2px solid rgba(255,255,255,.45); text-shadow: 0 1px 2px #000; touch-action: none; line-height: 1.05; text-align: center; }
+  .b small { display: block; font-size: 9px; opacity: .75; font-weight: 600; }
+  .b.p { background: rgba(225, 70, 70, .45); } .b.k { background: rgba(60, 130, 230, .45); } .b.s { background: rgba(255, 160, 40, .55); } .b.x { background: rgba(200, 60, 220, .55); } .b.g { background: rgba(60, 190, 120, .45); }
+  .b.dn { transform: scale(.9); filter: brightness(1.6); }
+  #topbtns { position: absolute; top: max(6px, env(safe-area-inset-top)); right: max(8px, env(safe-area-inset-right)); display: flex; gap: 8px; pointer-events: auto; }
+  #topbtns span { padding: 3px 9px; font-size: 11px; opacity: .75; border-radius: 14px; background: rgba(0,0,0,.45); border: 1px solid rgba(255,255,255,.35); }
+  #rot { position: fixed; inset: 0; z-index: 30; background: #05081c; display: none; align-items: center; justify-content: center; flex-direction: column; text-align: center; font-size: 18px; color: #FFE066; }
+  #rot .ph { width: 44px; height: 76px; border: 4px solid #FFE066; border-radius: 9px; margin-bottom: 18px; animation: rot 1.8s ease-in-out infinite; }
+  @keyframes rot { 0%, 30% { transform: rotate(0); } 60%, 100% { transform: rotate(90deg); } }
+  @media (orientation: portrait) { body.touch.playing #rot { display: flex; } }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080" tabindex="0"></canvas>
+
+<div id="cover"><div class="wrap">
+  <h1>猫娘格斗：最后一碗白米饭</h1>
+  <div class="sub">九位大模型萌娘，抢最后一碗白米饭 · 网页版 · 打开即玩</div>
+  <img class="hero" src="cover.jpg" alt="游戏标题画面">
+  <div class="bar"><i id="lbar"></i></div>
+  <div id="ltxt">正在加载…</div>
+  <div class="row"><b>电脑难度</b><span class="opt" data-d="easy">简单</span><span class="opt" data-d="normal">普通</span><span class="opt" data-d="hard">困难</span><span class="opt" data-d="hell">地狱</span></div>
+  <div class="row"><b>画质</b><span class="opt" data-q="hi">特效全开</span><span class="opt" data-q="lo">流畅（手机推荐）</span></div>
+  <button id="go" disabled>加载中…</button>
+  <div class="card" id="howto">
+    <h3>怎么玩</h3>
+    <div class="kb">电脑：<kbd>A</kbd><kbd>D</kbd> 走 · <kbd>W</kbd> 跳 · <kbd>S</kbd> 蹲 · <kbd>J</kbd> 轻拳 <kbd>K</kbd> 轻脚 <kbd>U</kbd> 重拳 <kbd>I</kbd> 重脚 · <kbd>L</kbd> 架招 · <kbd>O</kbd> 一键必杀 · <kbd>H</kbd> 一键超必杀 · <kbd>J</kbd>+<kbd>K</kbd> 投 · <kbd>Enter</kbd> 确定 · <kbd>Tab</kbd>/<kbd>Esc</kbd> 暂停看出招表 · <kbd>M</kbd> 静音 · <kbd>B</kbd> 切歌 <kbd>N</kbd> 难度 <kbd>C</kbd> 冷却</div>
+    <div class="tc">手机：<b>横屏</b>玩。左下拖动摇杆走 / 跳 / 蹲，右下按键出招；「必杀」「超必」一键放招，不会搓招也能打。点画面中间 = 确定。</div>
+    <div>选人后打街机模式：8 场 + 最终头目。会搓招的可以用 ↓↘→ + 拳 等街霸式指令（出招表在暂停菜单里）。</div>
+  </div>
+  <div class="fine">
+    同人二创作品，角色为大模型萌娘二创形象，与各家公司无关。<br>
+    作者：<b>B 站「大肥鱼」</b> · 免费游玩，无广告、不收集个人信息
+  </div>
+</div></div>
+
+<div id="pad">
+  <div id="stick"><div id="stickBase"></div><div id="stickKnob"></div></div>
+  <div id="btns">
+    <div class="b g" data-k="KeyL">架招<small>L</small></div>
+    <div class="b p" data-k="KeyJ">轻拳<small>J</small></div>
+    <div class="b p" data-k="KeyU">重拳<small>U</small></div>
+    <div class="b s" data-k="KeyO">必杀<small>O</small></div>
+    <div class="b g" data-k="KeyJ,KeyK">投<small>J+K</small></div>
+    <div class="b k" data-k="KeyK">轻脚<small>K</small></div>
+    <div class="b k" data-k="KeyI">重脚<small>I</small></div>
+    <div class="b x" data-k="KeyH">超必<small>H</small></div>
+  </div>
+  <div id="topbtns"><span data-t="Enter">确定</span><span data-t="Escape">暂停</span><span data-t="KeyB">切歌</span><span data-t="KeyM">静音</span></div>
+</div>
+<div id="rot"><div class="ph"></div>把手机横过来玩<br><small style="color:#c9d4ff;font-size:13px;margin-top:8px">（锁定了竖屏的话，先在控制中心关掉方向锁定）</small></div>
+
+<script>
+(() => {
+  const touch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
+  if (touch) document.body.classList.add('touch');
+  const ls = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } };
+  // 手机默认简单难度 + 流畅画质；电脑默认普通 + 特效全开（玩家选过就记住）
+  let opt = {}; try { opt = JSON.parse(ls('cf_opt') || '{}') || {}; } catch (e) {}
+  let diff = opt.diff || (touch ? 'easy' : 'normal'), q = ls('cf_web_q') || (touch ? 'lo' : 'hi');
+  const setDiff = d => { diff = d; try { const o = JSON.parse(ls('cf_opt') || '{}') || {}; o.diff = d; ls('cf_opt', JSON.stringify(o)); } catch (e) { ls('cf_opt', JSON.stringify({ diff: d })); } if (typeof OPT !== 'undefined') OPT.diff = d; };
+  const qs = new URLSearchParams(location.search);
+  window.CF_LOWFX = (q === 'lo' && qs.get('post') !== '1') || qs.get('post') === '0';
+  setDiff(diff);
+  const opts = document.querySelectorAll('.opt'), paint = () => opts.forEach(o => o.classList.toggle('on', (o.dataset.d && o.dataset.d === diff) || (o.dataset.q && o.dataset.q === q)));
+  paint();
+  opts.forEach(o => o.addEventListener('click', () => {
+    if (o.dataset.d) setDiff(o.dataset.d);
+    if (o.dataset.q) { q = o.dataset.q; ls('cf_web_q', q); window.CF_LOWFX = q === 'lo';  }
+    paint();
+  }));
+  if (!touch) document.querySelector('.tc').style.display = 'none'; else document.querySelector('.kb').style.opacity = .6;
+  // 进度条：开场包字节 + 已加载的脚本
+  const CORE = 13175306, lbar = document.getElementById('lbar'), ltxt = document.getElementById('ltxt'), go = document.getElementById('go'), t0 = performance.now();
+  const tick = () => {
+    let js = 0; for (const e of performance.getEntriesByType('resource')) if (/\.(js|ttf)(\?|$)/.test(e.name)) js += e.decodedBodySize || e.encodedBodySize || 0;
+    const got = (window.CF_DL ? CF_DL.got : 0) + js, p = window.READY ? 1 : Math.min(0.99, got / CORE);
+    lbar.style.width = (p * 100).toFixed(1) + '%';
+    if (window.ASSET_FAIL && ASSET_FAIL.length) ltxt.textContent = '有图片包没加载上，请刷新页面重试（网络不好可以多等一会儿）';
+    else if (window.READY) { ltxt.textContent = '加载完成（' + (CORE / 1048576).toFixed(1) + ' MB，用时 ' + ((performance.now() - t0) / 1000).toFixed(1) + ' 秒）；角色动作在选人时再加载'; go.disabled = false; go.textContent = '开始游戏'; window.CF_LOADMS = window.CF_LOADMS || performance.now(); return; }
+    else ltxt.textContent = '正在加载… ' + (got / 1048576).toFixed(1) + ' / ' + (CORE / 1048576).toFixed(1) + ' MB';
+    setTimeout(tick, 200);
+  };
+  tick();
+  // 开始：收起封面；手机上尽量全屏 + 锁横屏，显示触屏按键
+  go.addEventListener('click', () => {
+    document.getElementById('cover').style.display = 'none'; document.body.classList.add('playing');
+    try { if (typeof auInit === 'function') auInit(); if (typeof bgmPlay === 'function') bgmPlay(); } catch (e) {}
+    setDiff(diff); try { if (window.CF_G && typeof optDiff === 'function') CF_G.diff = optDiff().base; } catch (e) {}
+    try { if (typeof POST !== 'undefined' && POST.ok && POST.toggle && !!POST.on === !!window.CF_LOWFX) POST.toggle(); } catch (e) {}
+    if (touch) {
+      document.getElementById('pad').classList.add('on');
+      const el = document.documentElement, rf = el.requestFullscreen || el.webkitRequestFullscreen;
+      if (rf) Promise.resolve(rf.call(el)).then(() => screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape')).catch(() => 0);
+    }
+    document.getElementById('c').focus();
+  });
+  // —— 触屏：把按键变成键盘事件（游戏本身只认键盘） ——
+  const KEYN = { ArrowLeft: 'ArrowLeft', ArrowRight: 'ArrowRight', ArrowUp: 'ArrowUp', ArrowDown: 'ArrowDown', Enter: 'Enter', Escape: 'Escape' };
+  const send = (type, code) => window.dispatchEvent(new KeyboardEvent(type, { code, key: KEYN[code] || code.replace(/^Key/, '').toLowerCase(), bubbles: true, cancelable: true }));
+  document.querySelectorAll('#btns .b').forEach(b => {
+    const ks = b.dataset.k.split(','); let held = null;
+    const up = e => { if (held === null || (e && e.pointerId !== held)) return; held = null; b.classList.remove('dn'); ks.forEach(k => send('keyup', k)); };
+    b.addEventListener('pointerdown', e => { e.preventDefault(); if (held !== null) return; held = e.pointerId; try { b.setPointerCapture(e.pointerId); } catch (_) {} b.classList.add('dn'); ks.forEach(k => send('keydown', k)); if (navigator.vibrate) navigator.vibrate(8); });
+    ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t => b.addEventListener(t, up));
+  });
+  document.querySelectorAll('#topbtns span').forEach(b => b.addEventListener('pointerdown', e => { e.preventDefault(); send('keydown', b.dataset.t); setTimeout(() => send('keyup', b.dataset.t), 60); }));
+  // 摇杆：从按下的位置算方向，8 方向，按住期间持续
+  const st = document.getElementById('stick'), base = document.getElementById('stickBase'), knob = document.getElementById('stickKnob');
+  let sid = null, cx = 0, cy = 0, cur = new Set();
+  const setDirs = (dx, dy) => {
+    const r = Math.hypot(dx, dy), nx = new Set();
+    if (r > 16) { const a = Math.atan2(dy, dx) * 180 / Math.PI; // 右 0，下 90
+      if (a > -67.5 && a < 67.5) nx.add('ArrowRight'); if (a > 112.5 || a < -112.5) nx.add('ArrowLeft');
+      if (a < -22.5 && a > -157.5) nx.add('ArrowUp'); if (a > 22.5 && a < 157.5) nx.add('ArrowDown'); }
+    for (const k of cur) if (!nx.has(k)) send('keyup', k);
+    for (const k of nx) if (!cur.has(k)) send('keydown', k);
+    cur = nx;
+  };
+  const place = (el, x, y) => { const rc = st.getBoundingClientRect(); el.style.left = (x - rc.left) + 'px'; el.style.top = (y - rc.top) + 'px'; };
+  st.addEventListener('pointerdown', e => { e.preventDefault(); if (sid !== null) return; sid = e.pointerId; try { st.setPointerCapture(sid); } catch (_) {} cx = e.clientX; cy = e.clientY; place(base, cx, cy); place(knob, cx, cy); });
+  st.addEventListener('pointermove', e => { if (e.pointerId !== sid) return; let dx = e.clientX - cx, dy = e.clientY - cy; const r = Math.hypot(dx, dy), m = 52; if (r > m) { dx *= m / r; dy *= m / r; } place(knob, cx + dx, cy + dy); setDirs(dx, dy); });
+  const end = e => { if (e.pointerId !== sid) return; sid = null; setDirs(0, 0); knob.style.left = base.style.left = ''; knob.style.top = base.style.top = ''; };
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t => st.addEventListener(t, end));
+  setInterval(() => { try { const f = window.GAME && GAME.scene && GAME.scene() === 'fight'; document.getElementById('btns').style.opacity = f ? 1 : 0.35; document.getElementById('stick').style.opacity = f ? 1 : 0.5; } catch (e) {} }, 300);
+  document.addEventListener('contextmenu', e => e.preventDefault());
+  document.addEventListener('gesturestart', e => e.preventDefault());
+})();
+</script>
+<script src="js/meta.js"></script>
+<script src="js/data.js"></script>
+<script src="js/sim.js"></script>
+<script src="js/qlazy.js"></script>
+<script src="js/abin.js"></script>
+<script src="js/assets_a.js"></script>
+<script src="js/assets_b.js"></script>
+<script src="js/assets_c.js"></script>
+<script src="js/assets_d.js"></script>
+<script src="js/assets_e.js"></script>
+<script src="js/assets_f.js"></script>
+<script src="js/assets_g.js"></script>
+<script src="js/meta_fight.js"></script>
+<script src="js/meta_fight_a.js"></script>
+<script src="js/meta_props.js"></script>
+<script src="js/meta_fx.js"></script>
+<script src="js/meta_sel.js"></script>
+<script src="js/meta_srhit.js"></script>
+<script src="js/gfx.js"></script>
+<script src="js/guest_meta.js"></script>
+<script src="js/render.js"></script>
+<script src="js/meme_ds.js"></script>
+<script src="js/post.js"></script>
+<script src="js/scenes.js"></script>
+<script src="js/selui.js"></script>
+<script src="js/sfx_data.js"></script>
+<script src="js/vox_data.js"></script>
+<script src="js/guest_vox.js"></script>
+<script>window.NO_BGM = true;</script>
+<script src="js/audio.js"></script>
+<script src="js/opts.js"></script>
+<script src="js/train.js"></script>
+<script src="js/play.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

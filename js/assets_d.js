@@ -1,0 +1,2 @@
+// 游戏图片素材索引（图片本体在同名 .pack.webp）
+ABIN("js/assets_d.pack.webp", {"assets/spr/f_gem_hurt.webp": [0, 13550, "image/webp"], "assets/spr/f_gem_stance.webp": [13550, 13654, "image/webp"], "assets/spr/f_gem_win.webp": [27204, 12922, "image/webp"], "assets/spr/f_glm_hurt.webp": [40126, 12780, "image/webp"], "assets/spr/f_glm_stance.webp": [52906, 12698, "image/webp"], "assets/spr/f_glm_win.webp": [65604, 12102, "image/webp"], "assets/spr/f_gpt_hurt.webp": [77706, 13432, "image/webp"]});
