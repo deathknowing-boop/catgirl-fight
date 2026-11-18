@@ -256,7 +256,7 @@ STAGE2F.waterside = function (s, FL) {      // 人之后：雨丝（两层，近
 // ===== 第 77 圈：背景梗小剧场 THEATER（用户 16:47 / 16:48：背景里大量会动的大肥鱼梗）=====
 // 图：assets/th/<名>_<格>.webp（GPT 出的绿幕整张 → gtools/th_cut.py 抠底切格）。只进完整版：打包版没有 th 懒加载包时整段不画；?theater=0 关。
 // 画法：每格先压暗降饱和缓存一次（不抢前景），程序做循环动画（换格、上下浮、挤压、水花 / 烟 / 爱心 / 星星粒子、字幕牌），随战况反应（重击时「！」跳一下，K.O. 全体欢呼）。
-const TH = { lz: 0, dk: {} }, TH_N = { th_pond_fish: 4, th_incense: 2, th_slack: 1, th_claude_pet: 2, th_gpt_kid: 2, th_claude_beat: 2, th_ds_gun: 2, th_ds_dance: 3, th_grok_tea: 2, th_gem_play: 3, th_glm_flip: 2, th_kimi_scroll: 2, th_qwen_agents: 3 };      // 有图的才列（缺图会报 IMG FAIL）
+const TH = { lz: 0, dk: {} }, TH_N = { th_pond_fish: 4, th_incense: 2, th_slack: 1, th_claude_pet: 2, th_gpt_kid: 2, th_claude_beat: 2, th_ds_gun: 2, th_ds_dance: 3, th_grok_tea: 2, th_gem_play: 3, th_glm_flip: 2, th_kimi_scroll: 2, th_qwen_agents: 3, th_dou_live: 3 };      // 有图的才列（缺图会报 IMG FAIL）
 const TH_OFF = typeof location !== 'undefined' && /[?&]theater=0/.test(location.search);
 function thLoad() { if (TH.lz || TH_OFF || typeof document === 'undefined') return; TH.lz = 1; if (window.LAZY_PACKS && !LAZY_PACKS.th) return;
   const L = []; for (const n in TH_N) for (let i = 0; i < TH_N[n]; i++) L.push(['t:' + n + '_' + i, 'assets/th/' + n + '_' + i + '.webp']); if (typeof LAZY !== 'undefined') { LAZY.th = () => L; loadLazy('th'); } }
@@ -321,6 +321,15 @@ Object.assign(THV, {      // 第 79 圈：千问开 N 个小代理（打开电�
     else if (cell === 1) thBubble(Math.floor(t / 40) % 2 ? '收到！' : '在跑了在跑了', mx, y - hh * 1.25, Math.round(h * 0.09), 0.8);
     else if (cell === 2) thBubble(R.big ? '别打了！代理又宕机了！' : '代理……全宕机了……', x + h * 0.2, y - h * 1.08, Math.round(h * 0.09), 0.85); },
 });
+function thMosaic(n, x, y, h, px, o = {}) { const c = thIm(n, o.dim || 0.7); if (!c) return false; const w = h * c.width / c.height, k = Math.max(1, Math.round(h / px)), m = TH.mz || (TH.mz = document.createElement('canvas')); m.width = Math.max(1, Math.round(k * c.width / c.height)); m.height = k; const mx = m.getContext('2d'); mx.clearRect(0, 0, m.width, m.height); mx.drawImage(c, 0, 0, m.width, m.height); g.save(); g.imageSmoothingEnabled = false; g.globalAlpha *= o.a == null ? 1 : o.a; g.drawImage(m, x - w / 2, y - h, w, h); g.restore(); return true; }      // 第 81 圈：豆包「画风突变」= 整格变马赛克
+Object.assign(THV, {      // 第 81 圈：豆包彩蛋（直播带货奶茶 → 抱着大电话「喂？在吗？」→ 抱巨型奶茶；隔一阵「画风突变」变马赛克再变回来）
+  dou(s, x, y, h, R) { const t = s.f, P = 540, u = (t % P) / P, cell = R.ko ? 2 : u < 0.42 ? 0 : u < 0.72 ? 1 : 2, n = 'th_dou_live_' + cell, mz = R.big || (u > 0.36 && u < 0.42) || (u > 0.66 && u < 0.72), hop = cell === 2 ? Math.abs(Math.sin(t * 0.12)) * h * 0.03 : 0;
+    if (mz) { const px = 6 + Math.abs(Math.sin(t * 0.5)) * 10; if (!thMosaic(n, x, y - hop, h, px, { dim: 0.74 })) return; thBubble('画风突变！', x, y - h * 1.1, Math.round(h * 0.1), 0.85); return; }
+    if (!thSpr(n, x, y - hop, h, { dim: 0.74, rot: cell === 1 ? Math.sin(t * 0.15) * 0.03 : 0 })) return;
+    if (cell === 0) { const k = 0.5 + 0.5 * Math.sin(t * 0.2); g.save(); g.globalAlpha = 0.25 + 0.2 * k; g.fillStyle = '#FFF6E0'; g.beginPath(); g.arc(x + h * 0.32, y - h * 0.82, h * 0.09, 0, 7); g.fill(); g.restore(); if (Math.floor(t / 7) % 2) { g.save(); g.fillStyle = 'rgba(255,60,80,0.85)'; g.beginPath(); g.arc(x - h * 0.42, y - h * 0.98, h * 0.022, 0, 7); g.fill(); g.restore(); } thBubble(u < 0.2 ? '家人们点点关注～' : '奶茶管够，三二一上链接！', x, y - h * 1.1, Math.round(h * 0.09), 0.85); }
+    else if (cell === 1) { for (let i = 0; i < 3; i++) { const q = ((t * 0.03 + i / 3) % 1); g.save(); g.globalAlpha = (1 - q) * 0.7; g.strokeStyle = '#FFE08A'; g.lineWidth = 2.5; g.beginPath(); g.arc(x + h * 0.08, y - h * 0.78, h * (0.08 + q * 0.16), -0.7, 0.3); g.stroke(); g.restore(); } thBubble(Math.floor(t / 50) % 2 ? '喂？在吗在吗？' : '我跟你说哦——', x, y - h * 1.1, Math.round(h * 0.09), 0.85); }
+    else { for (let i = 0; i < 3; i++) { const q = ((t * 0.012 + i / 3) % 1); thHeart(x + (i - 1) * h * 0.22 + Math.sin(t * 0.05 + i) * 6, y - h * (0.85 + q * 0.4), h * 0.04, Math.sin(q * Math.PI) * 0.8); } if (R.ko) thBubble('抱抱！下次还来哦。', x, y - h * 1.1, Math.round(h * 0.09), 0.85); } },
+});
 const TH_SET = {      // 每个舞台 2–3 组：[类型, x, y(脚底), h]；画在场地之后、人之前（中景）。用户 17:03：池塘 = 抢饭 + 上香；办公室 = 摸鱼甩锅 + 宠溺；天台 / 会议室 = 降智小孩、拎起吊打、伏地打枪、吃饱跳舞
   waterside: [['pond', 1050, 748, 92], ['incense', 1790, 712, 150]],
   office: [['slack', 1660, 790, 250], ['pet', 400, 690, 135]],
@@ -328,7 +337,7 @@ const TH_SET = {      // 每个舞台 2–3 组：[类型, x, y(脚底), h]；�
   rooftop: [['gun', 1700, 775, 150], ['dance', 420, 720, 140]],
   fishplanet: [['dance', 330, 770, 100], ['agents', 1660, 770, 175]],
   nextdoor: [['scroll', 420, 800, 150], ['flip', 1720, 790, 150]],
-  interview: [['tea', 360, 780, 170], ['play', 1560, 790, 110]],
+  interview: [['tea', 360, 780, 170], ['play', 1560, 790, 110], ['dou', 1830, 790, 150]],
 };
 const THEATER = {
   back(s) { if (typeof st3Track === 'function') st3Track(s); },

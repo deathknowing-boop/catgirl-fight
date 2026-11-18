@@ -1575,13 +1575,21 @@
     const out = []; for (const ch of m) { const o = D[ch]; out.push(Object.assign({}, o), Object.assign({}, o)); }
     const last = out.pop(); out.push(Object.assign({}, last, { [btn]: 1 }), {}); return out;
   }
+  function padHab(s, A, me, op) {      // 第 81 圈：对手习惯（只读状态，事件衰减 0.85）
+    const H = A.hab || (A.hab = { jump: 0, low: 0, thr: 0, wake: 0, ps: '', sw: -1, gu: -99 }), dk = x => x * 0.85;
+    if (op.st !== H.ps) { if (op.st === 'jump' && Math.sign(op.vx || 0) === Math.sign(me.x - op.x)) { H.jump = dk(H.jump) + 1; }
+      if (op.st === 'throw') H.thr = dk(H.thr) + 1; if (H.ps === 'getup') H.gu = s.f; if ((op.st === 'sp' || op.st === 'su') && s.f - H.gu < 6) H.wake = dk(H.wake) + 1; else if (['light', 'heavy', 'block', 'walk', 'crouch'].includes(op.st) && s.f - H.gu < 6) H.wake = dk(H.wake); H.ps = op.st; }
+    if (op.swing !== H.sw && op.atk) { H.sw = op.swing; if (op.atk.low) H.low = dk(H.low) + 1; }
+    return H; }
   function padAI(s, me, op) {
     const A = me.pad || (me.pad = { q: [], rng: mkRng(((s.o.seed ?? 1) * 7 + 13 + me.idx) >>> 0), hold: null, holdT: 0, next: 0, seenSw: -1, blkSw: -1, aaSw: -9, pnSw: -1, cfSw: -1, fbT: -999 });
     const lv = clamp(s.o.pad[me.idx], 1, 8), k = (lv - 1) / 7, r = A.rng;
     const dir = op.x >= me.x ? 1 : -1, F = dir > 0 ? 'r' : 'l', B = dir > 0 ? 'l' : 'r', d = Math.abs(op.x - me.x), P = (MX && MX.padP(s, me, PADP[me.id])) || PADP[me.id] || PADP.gem;
-    const near = 230 + pwx(me, op), reactT = Math.round(16 - 12 * k);      // 反应：1 级 16 步（0.27 秒）→ 8 级 4 步
+    const near = 230 + pwx(me, op), reactT = Math.round(16 - 12 * k) + (me.pad && me.pad.rj || 0);      // 反应：1 级 16 步（0.27 秒）→ 8 级 4 步
     const q = (arr, lo) => { A.q = arr.slice(); A.qlo = !!lo; A.hold = null; return A.q.shift() || {}; };      // lo = 低优先级（立回里随手的动作，对方一跳 / 一出招就打断）
     if (s.phase !== 'fight') { A.q = []; return {}; }
+    const HU = !(s.o.pad && s.o.pad[op.idx]) && !s.o.v1, H = HU ? padHab(s, A, me, op) : { jump: 0, low: 0, thr: 0, wake: 0 }, kj = Math.min(1, k + H.jump * 0.06), kl = Math.min(1, k + H.low * 0.07);      // 第 81 圈：记对手习惯（爱跳 / 爱打下段 / 爱投 / 起身爱放升龙），按习惯加对空、蹲防、拆投、起身不压
+    if (HU && me.st === 'held' && lv >= 2) { if (A.thSw !== op.swing) { A.thSw = op.swing; A.thAt = r() < 0.08 + 0.5 * k + Math.min(0.3, H.thr * 0.08) * (0.3 + 0.7 * k) ? s.f + 2 + Math.floor(r() * (9 - 5 * k)) : -1; } if (s.f === A.thAt) return { a: 1, lk: 1 }; return {}; }      // 第 81 圈：被抓时按级数 / 习惯拆投
     if (A.q.length && !A.qlo) return A.q.shift();
     const busy = A.q.length > 0;
     const neutral = ['idle', 'walk', 'crouch'].includes(me.st), opAtk = ['light', 'heavy', 'sp', 'impact', 'su', 'throw'].includes(op.st) || (op.st === 'jump' && op.airAtk);
@@ -1600,10 +1608,10 @@
     if (!neutral && me.st !== 'parry') return { [B]: 1, dn: A.crouchBlk ? 1 : 0 };      // 别的状态（受击、出招中）：按住后，起来就是防御
     // ②½ 第 59 圈：起身压制（4 级起）——对方倒地时走近，起身无敌快结束时压一下：投 / 蹲轻脚（下段）/ 轻拳
     if (lv >= 4 && (op.st === 'down' || op.st === 'getup')) { A.oki = 1; if (d > near + 30) return { [F]: 1 }; return {}; }
-    if (A.oki) { if (!['idle', 'walk', 'crouch'].includes(op.st) || op.y > 0) A.oki = 0; else if (op.invul <= 3) { A.oki = 0; if (r() < 0.25 + 0.6 * k) { const t = r(); if (d < near && op.invul <= 0 && t < 0.35) return q([{ a: 1, lk: 1 }, {}]); if (t < 0.7) return q([{ dn: 1, lk: 1 }, { dn: 1 }]); return q([{ a: 1 }, {}]); } } }
+    if (A.oki) { if (!['idle', 'walk', 'crouch'].includes(op.st) || op.y > 0) A.oki = 0; else if (op.invul <= 3) { A.oki = 0; if (HU && lv >= 3 && H.wake >= 1.2 && r() < 0.35 + 0.4 * k) { A.hold = { [B]: 1 }; A.holdT = s.f + 26; return A.hold; } if (r() < 0.25 + 0.6 * k) { const t = r(); if (d < near && op.invul <= 0 && t < 0.35) return q([{ a: 1, lk: 1 }, {}]); if (t < 0.7) return q([{ dn: 1, lk: 1 }, { dn: 1 }]); return q([{ a: 1 }, {}]); } } }
     // ③ 对空
     if (op.st === 'jump' && op.y > 40 && op.vy < 700 && d < 330 + pwx(me, op) && Math.sign(op.vx || 0) !== dir && A.aaSw !== s.f - op.t && (me.st !== 'walk' || true)) { A.aaSw = s.f - op.t;
-      if (r() < 0.12 + 0.78 * k) { if (lv >= 4 && P.aa && r() < 0.6) return q(padMotion(P.aa[0], P.aa[1], F, B)); return q([{ dn: 1 }, { dn: 1, hp: 1 }, { dn: 1 }]); }
+      if (r() < 0.12 + 0.78 * kj) { if (lv >= 4 && P.aa && r() < 0.6) return q(padMotion(P.aa[0], P.aa[1], F, B)); return q([{ dn: 1 }, { dn: 1, hp: 1 }, { dn: 1 }]); }
       A.aaMiss = s.f + 30; }
     // ④ 飞行道具来了：架招（高级） / 跳过去 / 防
     const proj = s.P.find(p => !p.dead && p.own !== me.idx && p.dmg && p.vx && Math.sign(p.vx) === -dir && (p.x - me.x) * dir > 0 && (p.x - me.x) * dir < 380 && p.y < 430);
@@ -1615,8 +1623,8 @@
     const oReach = op.atk && op.atk.x1 ? op.atk.x1 * (op.skin === 'a' ? AKX : 1) + (me.skin === 'a' ? 86 : 72) + 50 : 520 + pwx(me, op);      // 够不着的招不用防（站着等确反）
     if (lv >= 5 && opAtk && op.y <= 0 && op.atk && op.atk.su && op.t === Math.max(1, op.atk.su - 2) && d < oReach && me.drive >= 1 && !me.burn && A.prSw !== op.swing) { A.prSw = op.swing;      // 第 59 圈：5 级起偶尔读招精防（按住算力键，4 步内挨打 = 精防）
       if (r() < 0.06 + 0.3 * (lv - 5) / 3) return q([{ dv: 1 }, { dv: 1 }, { dv: 1 }, { dv: 1 }, { dv: 1 }, { dv: 1 }, {}]); }
-    if (opAtk && d < oReach && op.t >= reactT && A.blkSw !== op.swing) { A.blkSw = op.swing; const low = !!(op.atk && op.atk.low) || !!(op.box && op.box.low);
-      if (r() < 0.2 + 0.72 * k) { A.crouchBlk = low ? r() < 0.3 + 0.7 * k : r() < 0.15 * (1 - k); A.hold = { [B]: 1, dn: A.crouchBlk ? 1 : 0 }; A.holdT = s.f + 24; } }
+    if (opAtk && d < oReach && op.t >= reactT && A.blkSw !== op.swing) { A.blkSw = op.swing; if (HU) A.rj = Math.floor(r() * 4) - 1; const low = !!(op.atk && op.atk.low) || !!(op.box && op.box.low);      // 第 81 圈：反应时间每次抖 −1…+2 步，不再像机器
+      if (r() < 0.2 + 0.72 * k) { A.crouchBlk = low ? r() < 0.3 + 0.7 * kl : r() < 0.15 * (1 - k); A.hold = { [B]: 1, dn: A.crouchBlk ? 1 : 0 }; A.holdT = s.f + 24; } }
     // ⑥ 确反：对方的招判定出完、还在收招
     if (['light', 'heavy', 'sp', 'impact'].includes(op.st) && !op.box && op.boxSw === op.swing && A.pnSw !== op.swing && op.y <= 0) { A.pnSw = op.swing;
       const hw = op.skin === 'a' ? 86 : 72, ax = me.skin === 'a' ? AKX : 1, rHP = ATK2.shp.x1 * ax + hw - 20, rHK = ATK2.shk.x1 * ax + hw - 20;
@@ -1627,6 +1635,7 @@
     // ⑦ 起身压制：对方倒地 → 走过去等着
     if (['down', 'getup'].includes(op.st)) { if (d > near) return { [F]: 1 }; return r() < 0.5 * k ? { [B]: 1 } : {}; }
     // ⑧ 每隔几步想一次（低级想得慢）
+    if (HU && H.low > 1.2 && d < near + 140 && A.lowG !== A.next) { A.lowG = A.next; if (r() < Math.min(0.6, H.low * 0.12) * (0.4 + 0.6 * k)) { A.walk = { [B]: 1, dn: 1 }; A.next = s.f + 14 + Math.floor(r() * 12); return A.walk; } }      // 第 81 圈：对手爱打下段 → 近距离时更常蹲着防
     if (s.f < A.next) return A.walk || {};
     A.next = s.f + 4 + Math.round((1 - k) * 10 + r() * 6); A.walk = null; const t = r();
     if (me.meter >= BAR && lv >= 2 && t < 0.02 + 0.02 * k && op.st === 'idle' && d < 500) return q(padMotion('236236', 'a', F, B));      // 偶尔直接放一级（对面站着发呆时）

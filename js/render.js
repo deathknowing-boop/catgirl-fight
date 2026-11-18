@@ -169,6 +169,9 @@ function pose0(s, f) {
   if (f.hitF != null && ['light', 'heavy', 'sp', 'su', 'jump', 'throw'].includes(f.st)) {      // 命中帧「大」：打中的那一下放大、往前探，顿帧结束后 4 步回弹
     const age = s.f - f.hitF, st0 = f.hitStop || 6, amp = age <= st0 ? 1 : clamp(1 - (age - st0) / 4), lv = f.hitLv || 1;
     if (amp > 0 && age >= 0) { const k = [0.035, 0.05, 0.06][lv - 1] * amp; sx *= 1 + k; sy *= 1 + k; dx += face * [6, 10, 14][lv - 1] * amp; } }
+  if (ANIMD) { const air = f.y > 0.5; if (f._ly && !air) f._ldA = s.f; f._ly = air; const la = s.f - (f._ldA ?? -99); if (la >= 0 && la < 6 && ['idle', 'walk', 'crouch', 'light', 'heavy', 'block'].includes(f.st)) { const q = 1 - la / 6, k = q * q; sy *= 1 - 0.09 * k; sx *= 1 + 0.06 * k; }      // 第 81 圈：落地缓冲（压扁 6 步弹回）
+    if (f._lfc != null && f._lfc !== face && ['idle', 'walk', 'crouch'].includes(f.st)) f._tnA = s.f; f._lfc = face; const ta = s.f - (f._tnA ?? -99); if (ta >= 0 && ta < 4 && ['idle', 'walk', 'crouch'].includes(f.st)) sx *= 0.55 + 0.45 * E.out3(ta / 4); }      // 第 81 圈：转身（横向压窄再展开）；?animd=0 关
+  if (TWG && (f.st === 'sp' || f.st === 'su') && TWC[f.id]) { if (f._twC !== name) { f._twP = f._twC; f._twC = name; f._twA = s.f; } const ag = s.f - f._twA; if (!ghost && f._twP && f._twP !== name && ag >= 0 && ag < 3) ghost = { n: f._twP, a: 0.42 * (1 - ag / 3), dx: -face * 14 * (ag + 1), sx: 1 }; } else f._twC = null;      // 第 81 圈：核心三人必杀换帧那 3 步垫上一帧的淡影往后拖（起手 → 出手不再硬切；?tw=0 关）
   if (f.skin === 'a') name = adultName(f, name);
   if (ghost && f.skin === 'a') ghost.n = adultName(f, ghost.n);
   return { name, dx, dy, rot, sx, sy, lie, skew, smear, ay, ghost, rev: f._rv, arc: f._arc };
@@ -1695,6 +1698,7 @@ const DRAVE_R = ['a', 'a', 'lk', 'lk', 'hp', 'hp', 'hk', 'hk', 'hp', 'hk'], KEYN
 // 第 47 圈：招牌必杀专用帧。k = 有这张帧才启用（没出图的角色 / 皮肤退回 POSE4 和借来的帧）；帧名 sg<表><1-4>，表的含义见 gtools/sig_prompts.py
 const NOSIG = typeof location !== 'undefined' && /nosig=1/.test(location.search);      // ?nosig=1：关掉招牌帧和专属特效（改前 / 改后对比用）
 const SGA = (f, t, a) => a[Math.min(a.length - 1, Math.floor(t))];
+const TWG = !/[?&]tw=0/.test(location.search), ANIMD = !/[?&]animd=0/.test(location.search), TWC = { ds: 1, claude: 1, gpt: 1 };      // 第 81 圈：核心三人必杀过渡
 const SIGR = {
   ds: {
     otk: { k: 'sg11', f: (f, t, F) => { const n = f.mv.n ?? 0, u = t - (f.mv.t0 || 0), su = [f.mv.v === 'b' || f.mv.ex ? 9 : 11, 7, 9, 8][n]; const W = [['sg11', 'sg12'], ['sg13', F('sg91') ? 'sg91' : 'sg14'], ['sg21', F('sg92') ? 'sg92' : 'sg22'], ['sg23', 'sg24']][n]; return { n: F(u < su ? W[0] : W[1]) || F(W[1]),      /* 第 61 圈：第 2 段转身背拳、第 3 段深蹲双重掌（V9），三段轮廓拉开 */ smear: u >= su && u < su + 5 ? { key: n === 3 ? 'kick' : 'heavy', age: u - su } : null }; } },
@@ -1772,6 +1776,9 @@ const SIGR = {
     dive: { k: 'sg43', f: (f, t, F) => ({ n: F(f.mv.land ? 'sg44' : 'sg43') }) },
   },
 };
+(() => { if (!TWG) return; const w = (id, mv, fn) => { const o = SIGR[id] && SIGR[id][mv]; if (!o) return; const f0 = o.f; o.f = (f, t, F, s) => { const r = f0(f, t, F, s); if (r && F('tw1') && fn(f, t)) r.n = F('tw1'); return r; }; };      // 第 81 圈：成年版核心三人起手 → 出手之间的专用过渡帧 tw1（生图，只进完整版；没有图时不变）
+  const s0 = (f, t) => { if ((f.mv.n ?? 0) !== 0) return false; const su = f.mv.v === 'b' || f.mv.ex ? 9 : 11, u = t - (f.mv.t0 || 0); return u >= su - 3 && u < su; };
+  w('ds', 'otk', s0); w('gpt', 'kyo3', s0); w('claude', 'paper', (f, t) => t >= 12 && t < 16); })();
 const POSE4 = {
   kyo3: (f, t, F) => { const n = f.mv.n ?? 0, u = t - (f.mv.t0 || 0), su = [f.mv.v === 'b' || f.mv.ex ? 9 : 11, 7, 8, 9, 13][n]; return u < su ? { n: [F('jab1') || F('windup'), F('heavy1'), F('crouch1') || F('chamber'), F('upper1') || F('crouch'), F('heavy1') || F('windup')][n], dy: n === 4 ? -Math.sin(u / su * Math.PI) * 40 : 0 } : { n: [F('jab3'), F('heavy3'), F('sweep') || F('kick3'), F('upper3') || F('dp2'), F('ymid') || F('heavy3')][n] }; },
   dkick: (f, t, F) => f.mv.third && !f.mv.land && t - f.mv.third < 16 ? { n: F('smash') || F('kick3'), rot: 0.3 } : ({ n: t < 4 ? (F('crouch1') || F('crouch')) : f.y > 0 ? (t < 16 ? (F('kick3') || F('fkick')) : (F('fkick') || F('air'))) : F('stance') }),
