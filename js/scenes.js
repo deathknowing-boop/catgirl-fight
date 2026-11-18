@@ -81,6 +81,7 @@ function drawSelect0(t, o) {      // 第 67 圈起旧版（新版在 selui.js）
 // —— 对阵 ——  o: { p1, p2, stage, stageNo, busy0, busy1（「服务器繁忙」弹窗出现 / 关掉的时刻）, pct }
 function drawVS(t, o) {
   const a = CH[o.p1], b = CH[o.p2], k = tw(t, 0, 0.4, E.out5), slide = (1 - k) * 900;
+  if (typeof P5 !== 'undefined' && !P5.OFF) vsP5(t, o, a, b, slide); else {      // 第 74 圈：P5 拼贴版（?oldcut=1 回旧版）
   g.save(); g.beginPath(); g.moveTo(0, 0); g.lineTo(1080, 0); g.lineTo(840, H); g.lineTo(0, H); g.closePath(); g.clip(); g.fillStyle = lg(0, 0, 0, H, [a.col, a.ink]); g.fillRect(0, 0, W, H); patFill(PAT.stripe, 0.08, t * 60, 0); speedLines(t, 420, 560, { n: 50, r0: 520, a: 0.14 });
   txt(a.en.toUpperCase(), 430, 330, { size: 190, w: 900, fam: F.en, fill: 'rgba(255,255,255,0.13)', align: 'center', rot: -0.22 });
   const na = a.spr.intro || a.spr.idle; spr(na, 440 - slide, 1010, sprH(o.p1, na, 760)); g.restore();
@@ -91,10 +92,11 @@ function drawVS(t, o) {
   // 名字
   [[a, 60, 'left', '1P'], [b, 1860, 'right', o.tag2 || 'CPU']].forEach(([c, x, al, tag], i) => { const kk = tw(t, 0.25 + i * 0.1, 0.3, E.out5), dx = (1 - kk) * (i ? 300 : -300);
     txt(c.name, x + dx, 930, { size: 150, w: 900, fill: '#fff', stroke: c.ink, sw: 20, stroke2: '#fff', sw2: 32, align: al, a: kk }); txt(tag + '  ' + c.model + ' · ' + c.style, x + dx, 1000, { size: 36, w: 800, fill: '#fff', stroke: 'rgba(8,14,48,0.8)', sw: 8, align: al, a: kk }); });
+  }
   bubble(a.quote, 500, 150, { size: 34, k: pop(t, 0.7, 0.22), tail: -1, col: a.col }); bubble(b.quote, 1430, 236, { size: 34, k: pop(t, 1.15, 0.22), tail: 1, col: b.col });
   flashAt(t, 0.38, 0.2, '#fff', 0.8); glow(960, 540, 420, '#FFE066', 0.3 * tw(t, 0.38, 0.2));
   slam('VS', 960, 640, 330, t, 0.38, { fam: F.en, fill: lg(0, -260, 0, 20, ['#FFFFFF', '#FFE066', '#FF8A1F']), stroke: '#E8384F', sw: 24, stroke2: INK, sw2: 60, skew: -0.14, from: 3.4 });
-  const kt = pop(t, 0.5, 0.25); if (kt > 0) { g.save(); g.translate(960, 86); g.scale(kt, kt); panelSkew(-330, -44, 660, 88, 16, INK, '#fff', 5); txt((o.final ? '决赛' : o.stageNo ? '第 ' + o.stageNo + ' 关' : '第 1 回合') + ' · ' + STAGES[o.stage].name, 0, 16, { size: 40, w: 900, fill: '#FFE066', align: 'center' }); g.restore(); }
+  const kt = pop(t, 0.5, 0.25); if (kt > 0) { g.save(); g.translate(960, 86); g.scale(kt, kt); panelSkew(-330, -44, 660, 88, 16, INK, typeof P5 !== 'undefined' && !P5.OFF ? '#E8102E' : '#fff', 5); txt((o.final ? '决赛' : o.stageNo ? '第 ' + o.stageNo + ' 关' : '第 1 回合') + ' · ' + STAGES[o.stage].name, 0, 16, { size: 40, w: 900, fill: '#FFE066', align: 'center' }); g.restore(); }
   // 「服务器繁忙」：擂台加载卡在 99%
   if (o.busy0 != null && t >= o.busy0 && t < (o.busy1 ?? 1e9) + 0.2) { const u = t - o.busy0, out = o.busy1 != null ? clamp((t - o.busy1) / 0.2) : 0, kk = pop(u, 0, 0.22) * (1 - out), pct = o.pct ?? Math.min(99, Math.floor(E.out3(clamp(u / 1.6)) * 99));
     g.save(); g.fillStyle = `rgba(4,8,30,${0.5 * Math.min(1, u * 5) * (1 - out)})`; g.fillRect(0, 0, W, H); g.translate(960, 560); g.rotate(Math.sin(u * 22) * 0.012 * Math.max(0, 1 - u / 0.5)); g.scale(kk, kk);
@@ -106,6 +108,23 @@ function drawVS(t, o) {
     const an = u * 7; g.lineWidth = 8; g.lineCap = 'round'; g.strokeStyle = '#C9D0E0'; g.beginPath(); g.arc(322, 154, 20, 0, 7); g.stroke(); g.strokeStyle = '#4D6BFE'; g.beginPath(); g.arc(322, 154, 20, an, an + 1.7); g.stroke(); g.restore();
     stk('ds_busy', 1500, 800, 250, { sc: pop(u, 0.5, 0.22) * (1 - out), rot: 0.07 }); }
   lyricLine(o.lyric, o.lyricA ?? 1);
+}
+function vsP5(t, o, a, b, slide) {      // 第 74 圈：VS 画面套 P5 拼贴：暗色斜分两半（放射 + 漫画网点）、角色叠红 / 黑两层错位剪影、撕纸斜切边、剪报字名字、VS 后面黑红爆炸块
+  const half = (c, id, L, clip) => { g.save(); g.beginPath(); clip(); g.clip(); const cx = L ? 430 : 1490;
+    g.fillStyle = lg(0, 0, 0, H, [mixc(c.col, '#000000', 0.25), mixc(c.ink, '#000000', 0.55)]); g.fillRect(0, 0, W, H);
+    P5.sunburst(cx, 600, 18, mixc(c.col, '#FFFFFF', 0.25), 0.2, (L ? 1 : -1) * t * 0.08); P5.halftone(cx, 600, '#05030C', 0.38, 24, 0, H + 24, W);
+    txt(c.en.toUpperCase(), cx, 330, { size: 190, w: 900, fam: F.en, fill: 'rgba(255,255,255,0.10)', align: 'center', rot: -0.22 });
+    const n = c.spr.intro || c.spr.idle, h = sprH(id, n, 760), x = (L ? 440 - slide : 1490 + slide), fl = !L, k2 = tw(t, 0.15, 0.35, E.out5);
+    spr(n, x + (L ? 1 : -1) * (14 + 30 * k2), 1010 - 6, h, { flip: fl, env: { col: '#E8102E', a: 1, bot: 0 }, a: 0.9 }); spr(n, x + (L ? 1 : -1) * (6 + 14 * k2), 1010 + 2, h, { flip: fl, env: { col: '#08060E', a: 1, bot: 0 } }); spr(n, x, 1010, h, { flip: fl }); g.restore(); };      // 红 / 黑两层错位剪影
+  half(a, o.p1, true, () => { g.moveTo(0, 0); g.lineTo(1080, 0); g.lineTo(840, H); g.lineTo(0, H); g.closePath(); });
+  half(b, o.p2, false, () => { g.moveTo(1080, 0); g.lineTo(W, 0); g.lineTo(W, H); g.lineTo(840, H); g.closePath(); });
+  P5.edge(1080, -20, 840, H + 20);      // 撕纸斜切边（白粗线 + 黑带 + 红细线）
+  const kv = tw(t, 0.34, 0.16, E.out5); if (kv > 0) { g.save(); g.translate(960, 560); g.rotate(-0.08); g.scale(kv, kv); const R = rngOf(77), pts = []; for (let i = 0; i < 22; i++) { const an = i / 22 * 6.283, r = (i % 2 ? 190 : 330) * (0.85 + R() * 0.3); pts.push([Math.cos(an) * r * 1.25, Math.sin(an) * r * 0.82]); }      // VS 后面的黑红爆炸块
+    g.fillStyle = '#E8102E'; g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(x * 1.12, y * 1.12) : g.moveTo(x * 1.12, y * 1.12)); g.closePath(); g.fill(); g.fillStyle = '#08060E'; g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.closePath(); g.fill(); g.restore(); }
+  [[a, 60, true, '1P'], [b, 1860, false, o.tag2 || 'CPU']].forEach(([c, x, L, tag], i) => { const t0 = 0.25 + i * 0.1, kk = tw(t, t0, 0.3, E.out5), base = [...c.name].length > 4 ? 88 : [...c.name].length > 3 ? 104 : 128, wd = base * 0.99 * [...c.name].length, x0 = L ? x : x - wd;      // 名字：剪报字（每字一块，逐个弹出）
+    g.save(); g.translate(x0 + wd / 2, 900); g.rotate(L ? -0.05 : 0.05); g.translate(-(x0 + wd / 2), -900); P5.tagWord(c.name, x0, 880, base, t - t0, rngOf(i * 31 + 5), 1); g.restore();
+    const sub = tag + '  ' + c.model + ' · ' + c.style, sw = Math.min(900, 22 * [...sub].length + 40), sx = L ? x - 10 : x - sw + 10; g.save(); g.globalAlpha = kk; g.fillStyle = '#08060E'; g.beginPath(); g.moveTo(sx, 966); g.lineTo(sx + sw + 20, 960); g.lineTo(sx + sw, 1012); g.lineTo(sx - 16, 1016); g.closePath(); g.fill(); g.fillStyle = '#E8102E'; g.fillRect(L ? sx : sx + sw - 70, 1008, 80, 6); g.restore();
+    txt(sub, L ? x : x, 1000, { size: 32, w: 800, fill: '#fff', align: L ? 'left' : 'right', a: kk }); });
 }
 // —— 一局打完（可玩版）——  o: { win, stageNo, last, n（续关倒数）}
 // 第 44 圈：胜利画面（街霸 6 式：赢家大立绘 + 名字 + 胜利台词）。台词都是本游戏自己写的
@@ -125,8 +144,8 @@ function winArt(id, skin, x, y, h, a, flip) {
 function drawMatchOver(t, o) {
   g.save(); g.fillStyle = `rgba(4,8,30,${0.72 * tw(t, 0, 0.3)})`; g.fillRect(0, 0, W, H); g.restore();
   if (o.winner && CH[o.winner]) { const c = CH[o.winner], k = tw(t, 0.1, 0.45, E.out5), q = WINQ[o.winner] || ['……'], line = q[(o.stageNo + (o.win ? 0 : 1)) % q.length];
-    g.save(); g.globalAlpha = k; g.beginPath(); g.moveTo(0, 0); g.lineTo(900 - (1 - k) * 600, 0); g.lineTo(700 - (1 - k) * 600, H); g.lineTo(0, H); g.closePath(); g.clip(); g.fillStyle = lg(0, 0, 0, H, [c.col, c.ink]); g.fillRect(0, 0, W, H); patFill(PAT.stripe, 0.08, t * 40, 0);
-    if (IM['x:cal_' + o.winner]) { g.save(); g.translate(400, 330); g.rotate(-0.2); calImg('cal_' + o.winner, 0, 0, 300, '#FFFFFF', 0.16, null, 860); g.restore(); } else txt(c.en.toUpperCase(), 380, 330, { size: 200, w: 900, fam: F.en, fill: 'rgba(255,255,255,0.12)', align: 'center', rot: -0.2 }); winArt(o.winner, o.wskin, 400 - (1 - k) * 300, 1080, 820, 1); g.restore();
+    g.save(); g.globalAlpha = k; g.beginPath(); g.moveTo(0, 0); g.lineTo(900 - (1 - k) * 600, 0); g.lineTo(700 - (1 - k) * 600, H); g.lineTo(0, H); g.closePath(); g.clip(); g.fillStyle = lg(0, 0, 0, H, [c.col, c.ink]); g.fillRect(0, 0, W, H); if (typeof P5 !== 'undefined' && P5.panelBg && !P5.OFF) P5.panelBg(380, 420, c.col, c.ink || INK, t); else patFill(PAT.stripe, 0.08, t * 40, 0);      // 第 69 圈：网点 + 放射底
+    if (IM['x:cal_' + o.winner]) { g.save(); g.translate(400, 330); g.rotate(-0.2); calImg('cal_' + o.winner, 0, 0, 300, '#FFFFFF', 0.16, null, 860); g.restore(); } else txt(c.en.toUpperCase(), 380, 330, { size: 200, w: 900, fam: F.en, fill: 'rgba(255,255,255,0.12)', align: 'center', rot: -0.2 }); winArt(o.winner, o.wskin, 400 - (1 - k) * 300, 1080, 820, 1); g.restore(); if (typeof P5 !== 'undefined' && P5.edge && !P5.OFF) P5.edge(900 - (1 - k) * 600, -20, 700 - (1 - k) * 600, H + 20, k);
     const kq = tw(t, 0.45, 0.35, E.out5); if (kq > 0) { g.save(); g.globalAlpha = kq; panelSkew(760, 760 + (1 - kq) * 40, 1100, 230, 24, 'rgba(8,14,48,0.92)', '#fff', 5); g.restore();
       const cim = IM['x:cal_' + o.winner], cw = cim ? Math.min(380, cim.width * 92 / cim.height) : 0; if (cim) calImg('cal_' + o.winner, 820 + cw / 2, 810 + (1 - kq) * 40, 92, '#FFFFFF', kq, c.ink, 380); else txt(c.name, 820, 828 + (1 - kq) * 40, { size: 56, w: 900, fill: '#fff', stroke: c.ink, sw: 10, a: kq }); txt('WINS', 820 + (cim ? cw : mw(c.name, 56, 900)) + 24, 826 + (1 - kq) * 40, { size: 44, w: 900, fam: F.en, fill: '#FFE066', a: kq, skew: -0.12 });
       txt('「' + line + '」', 830, 920 + (1 - kq) * 40, { size: 42, w: 700, fill: '#EAF2FF', a: kq * Math.min(1, (t - 0.5) * 3) }); } }

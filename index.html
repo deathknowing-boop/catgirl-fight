@@ -121,7 +121,7 @@
   }));
   if (!touch) document.querySelector('.tc').style.display = 'none'; else document.querySelector('.kb').style.opacity = .6;
   // 进度条：开场包字节 + 已加载的脚本
-  const CORE = 13175306, lbar = document.getElementById('lbar'), ltxt = document.getElementById('ltxt'), go = document.getElementById('go'), t0 = performance.now();
+  const CORE = 12358845, lbar = document.getElementById('lbar'), ltxt = document.getElementById('ltxt'), go = document.getElementById('go'), t0 = performance.now();
   const tick = () => {
     let js = 0; for (const e of performance.getEntriesByType('resource')) if (/\.(js|ttf)(\?|$)/.test(e.name)) js += e.decodedBodySize || e.encodedBodySize || 0;
     const got = (window.CF_DL ? CF_DL.got : 0) + js, p = window.READY ? 1 : Math.min(0.99, got / CORE);
@@ -200,12 +200,14 @@
 <script src="js/render.js"></script>
 <script src="js/meme_ds.js"></script>
 <script src="js/post.js"></script>
+<script src="js/stage2.js"></script>
+<script src="js/live3.js"></script>
+<script src="js/fx2.js"></script>
 <script src="js/scenes.js"></script>
 <script src="js/selui.js"></script>
 <script src="js/sfx_data.js"></script>
 <script src="js/vox_data.js"></script>
 <script src="js/guest_vox.js"></script>
-<script>window.NO_BGM = true;</script>
 <script src="js/audio.js"></script>
 <script src="js/opts.js"></script>
 <script src="js/train.js"></script>

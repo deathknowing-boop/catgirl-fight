@@ -2,6 +2,7 @@
 (function (root) {
   const D = (typeof module !== 'undefined') ? require('./data.js') : root;
   const CH = D.CH;
+  const JG = 1.83, JV = { full: 2800, short: 2000, sup: 3150, wall: 1700 }, HJ = s => !s.v1 && s.ctrl.includes('human');      // 第 75 圈（用户：跳得矮）：人参与的对局跳更高更快（滞空约 42 / 31 / 47 步，最高点约 470 / 260 / 600）；电脑对电脑和成片 v1 走旧数值
   const DT = 1 / 60, GRAV = 4200, WORLD_W = 2100, XMIN = 235, XMAX = 1865, INTRO = 150, DMG = 1.42, DMAX = 1500;
   const SU_INVUL = { wave: 32, flash: 72, beam: 70, revenge: 22, drop: 38, lock: 52, rain: 26, fix: 20, style: 38 };   // 超必杀出手前不会被打断
   const clamp = (x, a = 0, b = 1) => x < a ? a : x > b ? b : x;
@@ -149,7 +150,7 @@
         if (B('a')) { me.chain = 0; startAtk(s, me, 'light'); break; }
         if (B('b')) { startAtk(s, me, 'heavy'); break; }
         if (P('d') && me.dashCd <= 0) { setSt(me, 'dash'); me.mv = { dir: back ? -me.face : me.face, back: !!back }; me.dashCd = 34; if (back) me.invul = Math.max(me.invul, 7); s.emit('dash', { who: me.idx }); s.addFx('dust', me.x, 0, { life: 18 }); break; }
-        if (inp.u) { setSt(me, 'jump'); me.vy = 1380; me.vx = (inp.r ? 1 : inp.l ? -1 : 0) * spd * 0.95; me.y = 0.01; me.airAtk = 0; s.emit('jump', { who: me.idx }); s.addFx('dust', me.x, 0, { life: 16 }); break; }
+        if (inp.u) { setSt(me, 'jump'); me.vy = HJ(s) ? JV.full : 1380; me.jg = HJ(s) ? JG : 0; me.vx = (inp.r ? 1 : inp.l ? -1 : 0) * spd * 0.95; me.y = 0.01; me.airAtk = 0; s.emit('jump', { who: me.idx }); s.addFx('dust', me.x, 0, { life: 16 }); break; }
         if (inp.l || inp.r) { if (me.st !== 'walk') { me.st = 'walk'; me.walkT = 0; } me.walkT++; me.vx = (inp.r ? 1 : -1) * spd * (back ? 0.75 : 1); } else { me.st = 'idle'; me.vx = 0; }
         break; }
       case 'dash': me.vx = me.mv.dir * spd * (me.mv.back ? 2.3 : 2.7); if (me.t >= 15) { setSt(me, 'idle'); me.vx = 0; } break;
@@ -183,8 +184,8 @@
     }
     // 物理
     if (me.y > 0 || me.vy > 0) {
-      me.vy -= GRAV * DT; me.y += me.vy * DT;
-      if (me.y <= 0) { me.y = 0; me.vy = 0; me.landT = 0;
+      me.vy -= GRAV * (me.jg && me.st === 'jump' && !(me.floatT > 0) ? me.jg : 1) * DT; me.y += me.vy * DT;      // jg：第 75 圈新跳跃的重力倍数（只在普通跳的状态里）
+      if (me.y <= 0) { me.y = 0; me.vy = 0; me.landT = 0; me.jg = 0;
         if (me.st === 'jump') { setSt(me, 'idle'); me.vx = 0; s.emit('land', { who: me.idx }); s.addFx('dust', me.x, 0, { life: 16 }); }
         else if (me.st === 'launch' && me.gbOK && !me.gbDone && me.hp > 0 && s.ctrl.includes('human')) { me.gbDone = 1; me.gbOK = 0; me.vy = 780; me.y = 0.01; me.vx *= 0.6; me.juggle = Math.max(0, me.juggle - 1); s.emit('gbounce', { who: me.idx }); s.addFx('gbounce', me.x, 0, { life: 26 }); s.addFx('dust', me.x, 0, { life: 22, big: true }); s.shake = Math.max(s.shake, 14); s.hitstop = Math.max(s.hitstop, 4); }      // 第 30 圈：地面反弹（重击打飞后弹一次，可以再追打）
         else if (me.st === 'launch') { if (me.hp <= 0) setSt(me, 'ko'); else setSt(me, 'down'); me.invul = Math.max(me.invul, 2); s.emit('fall', { who: me.idx }); s.addFx('dust', me.x, 0, { life: 22, big: true }); s.shake = Math.max(s.shake, 7); }
@@ -438,7 +439,7 @@
   const MW = 12;       // 相邻两个方向、最后一个方向到按键，都要在 12 步（200 毫秒）以内
   const dirOf = (i, face) => { const f = face > 0 ? i.r : i.l, b = face > 0 ? i.l : i.r; return 5 + (f && !b ? 1 : b && !f ? -1 : 0) + (i.dn ? -3 : i.u ? 3 : 0); };
   function updDirs(s, me, inp) {
-    const d = dirOf(inp || me.in || {}, me.face), L = me.dirs || (me.dirs = []), last = L[L.length - 1];
+    const i0 = inp || me.in || {}, d = dirOf(me.y > 0 && i0.u && !s.v1 ? Object.assign({}, i0, { u: false }) : i0, me.face), L = me.dirs || (me.dirs = []), last = L[L.length - 1];      // 第 75 圈：空中不认 ↑（跳起来还按着 ↑ 就搓 236，↑→ 不再变成 9 把指令搓坏）
     if (last && last.d === d) return;
     if (last && s.f - last.f > MW) { L.length = 0; if (last.d !== 5) L.push({ d: last.d, f: s.f - 1 }); }      // 隔太久就重记，但一直按着的那个方向留着（按住↓再搓→也算）
     L.push({ d, f: s.f }); if (L.length > 10) L.shift();
@@ -606,13 +607,18 @@
     if (me.cmd && me.cmd.m && (me.cmd.m === '360' || me.cmd.m === '28c')) { const c = me.cmd; me.cmd = null; setSt(me, 'idle'); if (doCmd(s, me, s.F[1 - me.idx], c, false)) return; }      // 起跳前 3 步里出指令：转一圈投、↓蓄↑ 都是以 ↑ 结尾
     if (me.t < 3) return;
     const short = !me.in.u && !me.mv.sup, sup = me.mv.sup, d = me.mv.dir; setSt(me, 'jump'); me.hop = short;
-    me.vy = sup ? 1600 : short ? 1040 : 1380; me.vx = d * spd * (short ? 1.15 : sup ? 1.25 : 0.95); me.y = 0.01; me.airAtk = 0; me.airK = null; me.wj = 0; me.floated = 0; me.floatT = 0;
+    const hj = HJ(s); me.vy = hj ? (sup ? JV.sup : short ? JV.short : JV.full) : sup ? 1600 : short ? 1040 : 1380; me.jg = hj ? JG : 0; me.vx = d * spd * (short ? 1.15 : sup ? 1.25 : 0.95); me.y = 0.01; me.airAtk = 0; me.airK = null; me.wj = 0; me.floated = 0; me.floatT = 0;
     s.emit('jump', { who: me.idx }); s.addFx('dust', me.x, 0, { life: sup ? 22 : 16, big: sup });
   }
   function humanAir(s, me) {      // 跳攻击：四个键各一招；判定一直持续到落地附近
     const c = me.cmd, back = me.face > 0 ? me.in.l : me.in.r;
-    if (c && c.m && AIRSP[me.id]) { const id = AIRSP[me.id][c.m + (KIK[c.k] ? 'k' : 'p')]; if (id && (me.rice || 0) >= (REQ[id] || 0)) { me.cmd = null; setSt(me, 'sp'); me.mv = { id, v: c.k === 'hp' || c.k === 'hk' ? 'b' : 'a', air: 1 }; me.swing++; me.hitDone = {}; me.hitOK = false; me.box = null; s.emit('sp', { id, who: me.idx }); return; } }      // 空中必杀
-    if (WALLJ[me.id] && !me.wj && me.in.u && !me.prev.u && (me.x <= XMIN + 60 || me.x >= XMAX - 60) && me.y > 60) { me.wj = 1; me.wjF = s.f; me.vy = 1250; me.vx = (me.x <= XMIN + 60 ? 1 : -1) * 720; me.face = Math.sign(me.vx); me.airAtk = 0; s.emit('jump', { who: me.idx }); s.addFx('dust', me.x, me.y, { life: 14, small: true }); }      // 哈基米 三角跳：贴墙再按 ↑
+    if (c && c.k === 's1' && !s.v1) { const A = AIRSP[me.id] || {}, pref = { n: ['236p', '236k', '214p', '214k'], b: ['214p', '214k', '236p', '236k'], f: ['236k', '236p', '214k'], d: ['214k', '236k', '214p', '236p'] }[c.d || 'n'] || []; let id = null, v = 'a';      // 第 75 圈：懒人键 O 在空中 = 这个角色的空中必杀（按方向挑，没有就用 ↓ + 键那一招）
+      for (const k of pref.concat(Object.keys(A))) { const x = A[k]; if (x && (me.rice || 0) >= airReq(s, x)) { id = x; break; } }
+      if (c.d === 'd' && LZAIRD[me.id]) { id = LZAIRD[me.id]; v = 'b'; }      // ↓ + O：↓ + 键那一招优先
+      if (!id && LZAIR[me.id]) { id = LZAIR[me.id]; v = 'b'; }
+      if (id) { me.cmd = null; setSt(me, 'sp'); me.mv = { id, v, air: 1, lazy: 1 }; me.swing++; me.hitDone = {}; me.hitOK = false; me.box = null; me.floatT = 0; s.emit('sp', { id, who: me.idx }); return; } }
+    if (c && c.m && AIRSP[me.id]) { const id = AIRSP[me.id][c.m + (KIK[c.k] ? 'k' : 'p')]; if (id && (me.rice || 0) >= airReq(s, id)) { me.cmd = null; setSt(me, 'sp'); me.mv = { id, v: c.k === 'hp' || c.k === 'hk' ? 'b' : 'a', air: 1 }; me.swing++; me.hitDone = {}; me.hitOK = false; me.box = null; s.emit('sp', { id, who: me.idx }); return; } }      // 空中必杀
+    if (WALLJ[me.id] && !me.wj && me.in.u && !me.prev.u && (me.x <= XMIN + 60 || me.x >= XMAX - 60) && me.y > 60) { me.wj = 1; me.wjF = s.f; me.vy = me.jg ? JV.wall : 1250; me.vx = (me.x <= XMIN + 60 ? 1 : -1) * 720; me.face = Math.sign(me.vx); me.airAtk = 0; s.emit('jump', { who: me.idx }); s.addFx('dust', me.x, me.y, { life: 14, small: true }); }      // 哈基米 三角跳：贴墙再按 ↑
     if (me.id === 'kimi' && me.in.u && !me.floated && me.vy < 0 && me.y > 120) { me.floated = 1; me.floatT = 90; s.addFx('text', me.x, me.y + me.ch.h + 60, { life: 40, s: 'zzz', col: '#C9D4EE' }); }      // Kimi 空中按住 ↑：睡着飘 1.5 秒
     if (me.floatT > 0) { me.floatT--; if (me.in.u) { me.vy = Math.max(me.vy, 0) * 0 + 40; me.vx *= 0.96; } else me.floatT = 0; }
     const opA = s.F[1 - me.idx];
@@ -800,7 +806,8 @@
   });
   function startCine(s, atk, def) {
     const fin = def.hp <= def.hpMax * 0.25;
-    s.cine = { who: atk.idx, t: 0, fin, len: 300 };      // 演出长度和 render.js 的 CINE_LEN 一致
+    const live = !s.v1 && !(typeof location !== 'undefined' && /[?&]oldcine=1/.test(location.search));      // 第 72 圈：实时乱舞版（js/live3.js，192 步）；成片（v1）和 ?oldcine=1 仍是旧的插图演出
+    s.cine = { who: atk.idx, t: 0, fin, len: live ? 192 : 300, live };      // 旧演出长度和 render.js 的 CINE_LEN 一致；新的和 LIVE3.LEN 一致
     atk.box = null; atk.vx = 0; def.vx = 0; def.box = null; def.mv = null; setSt(def, 'held'); def.hy = 0;
     s.emit('cine', { who: atk.idx, fin });
   }
@@ -896,9 +903,10 @@
   }
 
   // ===== 第四版模组（MOVES_PLAN_4 1.1）：大肥鱼 = 越吃越强型（饭量 0–4 级），哈基米 = 贴身连压型。只对人生效 =====
-  const REQ = { bslam: 2, stamp: 3, ddk: 1 };      // 要几级饭量才能出（杰米型：1 级空中下踢、2 级饭盆砸、3 级指令投）。第 65 圈：爆廻（鲸尾回旋）改成 214+脚、不要饭量
+  const REQ = { bslam: 2, stamp: 3, ddk: 1 }, airReq = (s, id) => s.v1 ? (REQ[id] || 0) : id === 'ddk' ? 0 : id === 'bslam' ? 1 : (REQ[id] || 0);      // 第 75 圈（用户：空中必杀按不出）：鲸鳍下踢不要饭量、饭盆砸 1 级就行（成片 v1 仍按旧表）
+       // 要几级饭量才能出（杰米型：1 级空中下踢、2 级饭盆砸、3 级指令投）。第 65 圈：爆廻（鲸尾回旋）改成 214+脚、不要饭量
   const LVFB = {};      // 饭量不够时退回的招
-  const AIRSP = { ds: { '214k': 'bslam', '236k': 'ddk' }, gem: {} };
+  const AIRSP = { ds: { '214k': 'bslam', '236k': 'ddk' }, gem: {} }, LZAIR = { gpt: 'gdive', grok: 'splash', dou: 'stomp' }, LZAIRD = { gpt: 'gdive', grok: 'splash', dou: 'stomp', kimi: 'drill', qwen: 'dive' };      // LZAIR：没有空中指令必杀的角色，空中懒人键出 ↓ + 键那一招
   Object.assign(HMOV, { ds: { '236': 'otk', '623': 'dp', '214': 'plead', '22': 'rice', '63214': 'stamp' }, gem: { '236': 'yarn', '623': 'dp', '214': 'claw3', '22': 'banana', '63214': 'flip', '41236': 'flurry' } });
   Object.assign(HMOVK, { ds: { '22': 'helmet', '214': 'bakkai', '236': 'slide', '623': 'dpk' }, gem: { '22': 'steal', '236': 'knead', '623': 'bclaw', '63214': 'mambo' } });
   delete HMOVHP.ds;
@@ -1410,6 +1418,25 @@
   Object.assign(HMOVK.kimi, { '236': 'lobmoon' });
   Object.assign(HMOV.kimi, { '41236': 'zbreath' });
   Object.assign(AIRSP.kimi, { '236p': 'amoon' });
+  // ===== 第 76 圈：GLM 和两个客串补空中必杀（空中 236 + 拳；空中懒人键 O 也出这招）。只有人能出，电脑对电脑不变 =====
+  Object.assign(AIRSP, { glm: { '236p': 'abook' }, surf: { '236p': 'awater' }, nin: { '236p': 'ashuri' } });
+  Object.assign(SPF, {
+    abook(s, me, op, t) {      // GLM 空中 236 + 拳 空中飞书：往斜下方甩一本飞书（重版更快、伤害高一点）
+      const H = me.mv.v === 'b';
+      if (t === 7) { s.spawn(me, { kind: 'zbook', x: me.x + me.face * 90, y: Math.max(80, me.y + 210), vx: me.face * (H ? 900 : 760), vy: -(H ? 900 : 760), w: 110, h: 100, dmg: H ? 46 : 40, stun: 18, kb: 180, bstun: 10, life: 100 }); s.emit('proj', { k: 'zbook' }); me.vy = Math.max(me.vy, 220); }
+      if (t > 9 && me.y <= 0) { me.y = 0; return true; } return t > 80;
+    },
+    awater(s, me, op, t) {      // 浪花 空中 236 + 拳 空中水炮：斜着往下喷一发水弹，反冲让自己往后飘一点
+      const H = me.mv.v === 'b';
+      if (t === 8) { s.spawn(me, { kind: 'splash', x: me.x + me.face * 90, y: Math.max(80, me.y + 200), vx: me.face * (H ? 880 : 720), vy: -(H ? 880 : 720), w: 110, h: 100, dmg: H ? 46 : 40, stun: 18, kb: 200, bstun: 10, life: 100 }); s.emit('proj', { k: 'splash' }); me.vy = Math.max(me.vy, 300); me.vx = -me.face * 160; }
+      if (t > 10 && me.y <= 0) { me.y = 0; return true; } return t > 80;
+    },
+    ashuri(s, me, op, t) {      // 小忍 空中 236 + 拳 空中手里剑：斜下方飞镖（重版两枚，一陡一缓）
+      const n = me.mv.v === 'b' ? 2 : 1;
+      if (t === 6) { for (let i = 0; i < n; i++) s.spawn(me, { kind: 'shuri', x: me.x + me.face * 80, y: Math.max(80, me.y + 200), vx: me.face * (i ? 820 : 1080), vy: -(i ? 1080 : 820), w: 70, h: 70, dmg: n > 1 ? 26 : 36, stun: 16, kb: 160, bstun: 9, life: 90 }); s.emit('proj', { k: 'shuri' }); me.vy = Math.max(me.vy, 160); }
+      if (t > 8 && me.y <= 0) { me.y = 0; return true; } return t > 80;
+    },
+  });
   SUH.kimi = { 1: { id: 'fullmoon', name: '满月弹', inv: 12 }, 2: { id: 'mpillar', name: '月光柱', inv: 20 } };
   Object.assign(SPF, {
     lobmoon(s, me, op, t) {      // Kimi 236 + 脚 抛个月亮：抛物线飞过去（轻近重远），能越过地上的波

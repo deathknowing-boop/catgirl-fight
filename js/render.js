@@ -18,9 +18,11 @@ function adultName(f, name) {
 // 第 67 圈（用户反馈：升龙动作很怪）：所有 623 升龙系换成新画的升龙帧 sr11–14（下蹲 → 起跳 → 旋身上冲 → 顶点）/ sr21–24（顶点停顿 → 下落 → 落地 → 收招），有帧就用
 const DPID = { dp: 1, dpk: 1 };      // 火焰层：升龙拳 dp + 大肥鱼鲸鱼顶 dpk（B 提醒：623+脚 的倒翻踢 / 后跃斜爪 / 跑抓不算）
 const isDP = f => f.st === 'sp' && f.mv && !!DPID[f.mv.id], isDPP = f => f.st === 'sp' && f.mv && f.mv.id === 'dp';      // isDPP：换升龙拳新帧 sr 只认 dp
+const SHAKE_OLD = /[?&]shake=old/.test(typeof location !== 'undefined' ? location.search : '');
 const SR21_TILT = -0.32;      // sr21 斜身大约往前倾 18°，摆正用
 const DPALT = { ds: ['sg53', 'sg54'], gpt: ['sg43', 'sg44'] };      // 重 / EX 升龙顶点后：[顶点翻踢, 下落]
 function pose(s, f) {
+  if (s.cine && s.cine.live && typeof LIVE3 !== 'undefined') { const lp = LIVE3.pose(s, f); if (lp) return lp; }      // 第 72 圈：实时三级乱舞接管两个人的帧和位移
   if (typeof MEME !== 'undefined') { const mp = MEME.pose(s, f); if (mp) return mp; }      // D 代理：大肥鱼梗招（处决 / 钢盆狙击 / 转圈舞，js/meme_ds.js）
   const P0 = pose0(s, f); if (NOSIG || !isDPP(f)) return P0; const F = k => fp(f, k); if (!F('sr11')) return P0;
   const t = f.t, M = f.mv; let n;
@@ -102,14 +104,19 @@ function pose0(s, f) {
     if (t === 2 || t === 7) ghost = { n: fp(f, t === 2 ? 'hb1' : 'hb2'), a: 0.3, dx: face * 10, sx: 1 }; }
   else if (f.st === 'launch' && fp(f, 'kd1') && f.vy < 120 && f.y < 260) { name = fp(f, 'kd1'); rot = 0; }      /* 倒地链：落下前摆成平躺的「摔」 */
   else if ((f.st === 'down' || f.st === 'ko') && fp(f, 'kd2') && f.y <= 0) { lie = 1; name = (t < 5 ? fp(f, 'kd2') : t < 14 ? fp(f, 'kd3') : fp(f, 'kd4')) || name; if (t < 5) { const q = Math.sin(t / 5 * Math.PI); sy = 1 - 0.16 * q; sx = 1 + 0.1 * q; } }      /* 先砸地压扁 → 弹起 → 躺平（kd 图本身就是躺着画的，弹跳高度照旧） */
+  { const mq = (f.st === 'light' || f.st === 'heavy') && f.atk && MSEQ[f.atkK];      /* 第 68 圈（H）：角色专属普通技（ml / mh / mk 图，gtools/norm_prompts.py），有图就盖掉上面的借用帧 */
+    if (mq && fp(f, mq[1])) { const A = f.atk, e = A.su + A.ac + 2, nn = t < A.su ? mq[0] : t < e ? mq[1] : (t - e) < A.rc * 0.6 ? mq[2] : null; const n0 = nn && fp(f, nn);
+      name = n0 || stance; rot = 0; skew = 0; sx = 1; sy = 1; dy = 0; dx = 0; smear = null; if (t === A.su && !s.hitstop && fp(f, mq[0])) ghost = { n: fp(f, mq[0]), a: 0.38, dx: -face * 18, sx: 1 }; } }
   // —— 人才有的动作：蹲、蹲防、蹲攻击、翻滚、投、被抓 ——
   const cr = fp(f, 'crouch2') || fp(f, 'crouch'), crSy = cr ? 1 : 0.72, F = k => fp(f, k); let ay;
   if (f.st === 'crouch' || (f.st === 'block' && f.cblk)) { name = (f.st === 'block' ? F('cguard') : t < 3 ? F('crouch1') : null) || cr || stance; dx = f.st === 'block' ? -face * 6 + (hs ? Math.sin(s.f * 2.9) * 5 : 0) : 0; dy = 0; rot = 0; skew = 0; sx = 1; sy = crSy; }
+  else if ((f.st === 'light' || f.st === 'heavy') && f.atk && f.atk.crouch && !f.atk.up && CSEQ[f.atkK] && F(CSEQ[f.atkK][1])) { const A = f.atk, q = CSEQ[f.atkK], e = A.su + A.ac + 2; name = (t < A.su ? F(q[0]) : t < e ? F(q[1]) : (t - e) < A.rc * 0.6 ? F(q[2]) : null) || cr || stance; rot = 0; skew = 0; sx = 1; sy = crSy; dy = 0; dx = 0; smear = null; if (t === A.su && !s.hitstop && F(q[0])) ghost = { n: F(q[0]), a: 0.35, dx: -face * 14, sx: 1 }; }      /* 第 69 圈（H2）：专属蹲轻拳 / 蹲轻脚 / 扫腿（mc / ms 图，gtools/norm2_prompts.py） */
   else if ((f.st === 'light' || f.st === 'heavy') && f.atk && f.atk.crouch && !f.atk.up) { const A = f.atk, sw = f.atkK === 'sweep' || f.atkK === 'chk', lowk = f.atkK === 'clk', reach = sw ? 46 : 34; name = cr || stance; rot = 0; skew = 0; sx = 1; sy = crSy; dy = 0;
     if (sw && F('sw3')) { dx = 0; name = (t < A.su * 0.45 ? F('sw1') : t < A.su ? F('sw2') : t < A.su + A.ac + 4 ? F('sw3') : t < A.su + A.ac + A.rc * 0.6 ? F('sw4') : cr) || name; sy = 1; if (t >= A.su && t < A.su + A.ac + 3) smear = { key: 'sweep', age: t - A.su }; }      /* 第 42 圈：扫腿 4 帧（成年版） */
     else if (t < A.su) dx = -face * 10 * t / A.su; else if (t < A.su + A.ac + 3) { const an = F(sw ? 'sweep' : 'cjab'); if (an) { name = an; dx = lowk ? face * 16 : 0; } else dx = face * reach; if (sw) rot = -face * 0.1; smear = { key: sw || lowk ? 'sweep' : 'cjab', age: t - A.su, small: lowk }; } else dx = face * reach * (1 - clamp((t - A.su - A.ac - 3) / Math.max(1, A.rc - 3))); }
   else if (f.st === 'roll') { name = F('roll') || cr || stance; const q = clamp(t / 24); rot = (f.mv ? f.mv.dir : face) * q * Math.PI * 2; ay = 0.5; dy = -hOf(f, name) * 0.5 * crSy; sy = crSy; sx = 1; skew = 0; dx = 0; }
   else if (f.st === 'throw' && F('v1')) { const M = f.mv || {}; rot = 0; skew = 0; sx = 1; sy = 1; dx = 0; name = (!M.got ? F('v1') : (t - M.got) < 12 ? F('v2') : (t - M.got) < 22 ? F('v3') : F('v4')) || name; }      // 大肥鱼 / 哈基米的专属投（v 图：拎起来摇 / 抡圈）
+  else if (f.st === 'throw' && F('mt1')) { const M = f.mv || {}, k = t - (M.got || 0); rot = 0; skew = 0; sx = 1; sy = 1; dx = 0; name = (!M.got ? F('mt1') : k < 14 ? F('mt2') : k < 28 ? F('mt3') : F('mt4')) || name; }      // 第 69 圈（H2）：专属投（mt 图：抓 → 拎 → 摔 → 收）
   else if (f.st === 'throw') { const M = f.mv || {}; rot = 0; skew = 0; sx = 1; sy = 1;
     if (!M.got) { name = F('throw1') || fp(f, 'jab3') || fp(f, 'jab') || stance; dx = F('throw1') ? 0 : face * 24 * Math.min(1, t / 3); }
     else { const k = t - M.got; name = (F('throw2') ? (k < 14 ? F('throw2') : k < 28 ? F('throw3') : F('throw4')) : (k < 7 ? fp(f, 'heavy1') : k < 14 ? fp(f, 'heavy2') : k < 28 ? fp(f, 'heavy3') : fp(f, 'heavy4'))) || fp(f, 'heavy') || stance; dx = 0; } }
@@ -145,7 +152,7 @@ function pose0(s, f) {
   else if (f.st === 'sp' && f.mv && f.mv.id === 'lv2') { still(); name = F('ylv2') || fp(f, 'win') || name; dy = -Math.sin(clamp(t / 30) * Math.PI) * 20; }
   else if (f.st === 'sp' && f.mv && f.mv.id === 'lv3') { still(); name = (t < 12 ? (fp(f, 'heavy1') || fp(f, 'windup')) : (F('dimpact') || fp(f, 'heavy3'))) || name; }
   if (f.st === 'jsq') { still(); name = F('crouch1') || cr || name; }
-  else if (f.st === 'jump' && f.airAtk && f.airK) { still(); name = { jlp: F('njlp') || fp(f, 'jab3') || fp(f, 'jab'), jlk: F('njlk') || fp(f, 'fkick'), jhp: F('njhp') || F('smash') || fp(f, 'fkick'), jhk: (F('jk3') ? F(f.airT < 3 ? 'jk1' : f.airT < 6 ? 'jk2' : f.airT < 20 ? 'jk3' : 'jk4') : null) || F('njhk') || fp(f, 'fkick'), jlkb: fp(f, 'fkick') }[f.airK] || name; if (f.airK === 'jhk' && !F('njhk') && !F('jk3')) rot = face * 0.12; if ((f.airK === 'jlk' && !F('njlk')) || f.airK === 'jlkb') sx = -1; smear = f.airT >= 4 && f.airT < 12 ? { key: 'fkick', age: f.airT - 4 } : null; }
+  else if (f.st === 'jump' && f.airAtk && f.airK) { still(); name = { jlp: F('ma1') || F('njlp') || fp(f, 'jab3') || fp(f, 'jab'), jlk: F('ma2') || F('njlk') || fp(f, 'fkick'), jhp: (F('ma4') ? F(f.airT < 6 ? 'ma3' : 'ma4') : null) || F('njhp') || F('smash') || fp(f, 'fkick'), jhk: (F('jk3') ? F(f.airT < 3 ? 'jk1' : f.airT < 6 ? 'jk2' : f.airT < 24 ? 'jk3' : 'jk4') : null) || F('njhk') || fp(f, 'fkick'), jlkb: fp(f, 'fkick') }[f.airK] || name; if (f.airK === 'jhk' && !F('njhk') && !F('jk3')) rot = face * 0.12; if (f.airK === 'jlkb') sx = -1;      /* 第 68 圈（H）：跳轻脚以前没专用帧时把整张飞踢翻过来（人背对对手），看起来像方向反了，去掉；只有哈基米 ← + 轻脚的逆向踢还翻 */ smear = f.airT >= 4 && f.airT < 12 ? { key: 'fkick', age: f.airT - 4 } : null; }
   else if (f.st === 'sp' && f.mv && !NOSIG && SIGR[f.id] && SIGR[f.id][f.mv.id] && F(SIGR[f.id][f.mv.id].k)) { still(); const r = SIGR[f.id][f.mv.id].f(f, t, n => F(n), s); if (r) { name = r.n || name; rot = (r.rot || 0) * face; sx = r.sx || 1; sy = 1; dy = r.dy || 0; dx = 0; skew = 0; if (r.smear) smear = r.smear; } }      // 第 47 圈：招牌必杀专用帧（sg 表，见 gtools/sig_prompts.py）
   else if (f.st === 'sp' && f.mv && f.mv.id === 'spin') { still(); const k = Math.floor(t / 4) % 4; name = F('spin' + (k + 1)) || fp(f, 'kick3') || fp(f, 'kick') || name; if (!F('spin1')) sx = k % 2 ? -1 : 1; }      // 旋风腿：有 spin1..4 就按四个朝向轮播，没有就把踢腿帧左右翻着转
   else if (f.st === 'sp' && f.mv && POSE4[f.mv.id]) { still(); const r = POSE4[f.mv.id](f, t, F, s); if (r) { name = r.n || name; if (r.rot) rot = r.rot * face; if (r.sx) sx = r.sx; if (r.dy) dy = r.dy; if (r.smear) smear = r.smear; } }      // 第四版模组招式
@@ -199,12 +206,12 @@ function dpFlame(s, f, FL, front) {
     g.fillStyle = rg(x, mid, 0, H * 0.7 * big, [rgba(C[0], 0.3 * kb * fade), rgba(C[0], 0.16 * kb * fade), rgba(C[0], 0)]); g.fillRect(x - H, mid - H, 2 * H, 2 * H);      // 全身光晕
   }
   const turns = M.ex ? 3 : M.v === 'b' ? 2 : 1.5, ph = f.t * 0.55;
-  for (let j = 0; j < 2; j++) { g.strokeStyle = rgba(j ? C[1] : C[0], (front ? 0.6 * kw : 0.4 * kb) * fade); g.lineWidth = (j ? 6 : 12) * big; g.lineCap = 'round'; g.beginPath(); let started = false;      // 绕身螺旋火带：前层 = sin>0 那一半
+  for (let j = 0; j < 2; j++) { g.strokeStyle = rgba(j ? C[1] : C[0], (front ? 0.6 * kw : 0.4 * kb) * fade); g.lineWidth = (j ? 6 : 12) * big * (front ? 0.6 : 1); g.lineCap = 'round'; g.setLineDash(front ? [26 * big, 18 * big + j * 8] : []); g.lineDashOffset = -f.t * 6; g.beginPath(); let started = false;      // 绕身螺旋火带：前层 = sin>0 那一半
     for (let i = 0; i <= 40; i++) { const q = i / 40, an = ph + q * turns * 6.283 + j * 0.4, inFront = Math.sin(an) > 0, xx = x + Math.cos(an) * H * 0.3 * big, yy = yb - q * H * 1.05;
-      if (inFront === front) { if (!started) { g.moveTo(xx, yy); started = true; } else g.lineTo(xx, yy); } else started = false; } g.stroke(); }
+      if (inFront === front) { if (!started) { g.moveTo(xx, yy); started = true; } else g.lineTo(xx, yy); } else started = false; } g.stroke(); } g.setLineDash([]);      // 第 70 圈（GPT r68 剩余意见）：压在身上的前层螺旋改成断续窄条
   if (front) {
     { const fr = M.land ? 6 : f.vy > 0 || f.y < 1 ? 1 + Math.min(3, f.t / 4) : 4.5; seqTex('q_pillarw', fr, x, yb - H * 1.55 * big * 0.42, H * 1.55 * big, 0, 0.14 * kw * kw * fade, true, C[0]); }      // 前层薄火（包住身体）
-    if (!M.land) { const pn = pose(s, f).name, hp_ = window.SRHIT && SRHIT[pn], hh_ = hOf(f, pn), fx = hp_ ? x + f.face * hp_[0] * hh_ : x + f.face * H * 0.12, fy = hp_ ? yb + hp_[1] * hh_ : top - 10;      // 拳头位置：有 B 量的坐标就用（竖直升龙拳在头顶正上方） for (let k = 0; k < 7; k++) { const h1 = hash(k + Math.floor(f.t / 2) * 7), L = H * (0.25 + 0.3 * h1) * big, w = 18 * big; g.fillStyle = lg(0, fy, 0, fy - L, [rgba('#FFFFFF', 0.8 * fade), rgba(C[1], 0.7 * fade), rgba(C[0], 0)]); g.beginPath(); g.moveTo(fx - w + (k - 3) * 10, fy); g.quadraticCurveTo(fx + (h1 - 0.5) * 60, fy - L * 0.6, fx + (k - 3) * 6 + (h1 - 0.5) * 30, fy - L); g.quadraticCurveTo(fx + (h1 - 0.5) * 40, fy - L * 0.5, fx + w + (k - 3) * 10, fy); g.fill(); }      // 拳头火舌
+    if (!M.land) { const pn = pose(s, f).name, hp_ = window.SRHIT && SRHIT[pn], hh_ = hOf(f, pn), fx = hp_ ? x + f.face * hp_[0] * hh_ : x + f.face * H * 0.12, fy = hp_ ? yb + hp_[1] * hh_ : top - 10; for (let k = 0; k < 7; k++) { const h1 = hash(k + Math.floor(f.t / 2) * 7), L = H * (0.25 + 0.3 * h1) * big, w = 12 * big; g.fillStyle = lg(0, fy, 0, fy - L, [rgba('#FFFFFF', 0.45 * kw * fade), rgba(C[1], 0.5 * kb * fade), rgba(C[0], 0)]); g.beginPath(); g.moveTo(fx - w + (k - 3) * 10, fy); g.quadraticCurveTo(fx + (h1 - 0.5) * 60, fy - L * 0.6, fx + (k - 3) * 6 + (h1 - 0.5) * 30, fy - L); g.quadraticCurveTo(fx + (h1 - 0.5) * 40, fy - L * 0.5, fx + w + (k - 3) * 10, fy); g.fill(); }      // 拳头位置（有 B 量的坐标就用）+ 拳头火舌（第 70 圈：之前被行中注释吞掉，从没画出来过）
       g.fillStyle = rg(fx, fy, 0, 70 * big * (0.6 + 0.4 * kw), ['rgba(255,255,255,' + 0.85 * fade + ')', rgba(C[1], 0.6 * kw * fade), rgba(C[0], 0)]); g.beginPath(); g.arc(fx, fy, 70 * big * (0.6 + 0.4 * kw), 0, 7); g.fill(); if (f.vy > 300) star4(fx, fy, (70 + 30 * Math.sin(f.t * 1.7)) * big, f.t * 0.2, '#FFFFFF', 0.85 * fade); }      // 拳头顶端最亮的冲击点
     for (let k = 0; k < 16; k++) { const h1 = hash(k * 3.7 + f.swing0), q = ((f.t * 0.05 + h1) % 1), ex_ = x + (hash(k) - 0.5) * H * 0.7, ey = yb - q * H * 1.4; g.fillStyle = rgba(k % 3 ? C[1] : '#FFFFFF', (1 - q) * fade); g.beginPath(); g.arc(ex_, ey, 4 + 4 * h1, 0, 7); g.fill(); }      // 火星
     if (f.hitOK && M._hbF == null) M._hbF = s.f; if (M._hbF != null && f.mv.k != null && M._hbK !== f.swing) { M._hbK = f.swing; }
@@ -248,7 +255,7 @@ function drawFighter0(s, f, FL) {
   if (f.helmet > 0 && !/_w[34]$/.test(p.name) && !p.lie && !(typeof MEME !== 'undefined' && MEME.helmet(s, f, p, x, yb, h, flip))) { const hb = h * 0.3; spr('p_basin', x + f.face * 6, yb + p.dy - h * (p.name.endsWith('_crouch2') || p.name.endsWith('_crouch') ? 0.62 : 0.86), hb, { flip: f.face < 0, rot: p.rot }); }      // 戴着盆
   if (f.burn && (f.st === 'idle' || f.st === 'crouch') && BURN_SAY[f.id]) { if (f.id === 'ds') sayHand(f.x, yb - h - 20, BURN_SAY[f.id], 0.95, 7); else say(f.x, yb - h - 40, BURN_SAY[f.id], f.ch.col, 0.95); }
   if (f.dumb > 0) { txt('降智中', f.x, yb - h - 30, { size: 26, w: 900, fill: '#D0D4DC', stroke: INK, sw: 6, align: 'center' }); cloudShape(f.x, yb - h - 70, 0.5); }
-  if (f.inv > 0 && !s.exe && !s.cine) txt('代你操作中 ⇄', f.x, yb - h - 30, { size: 26, w: 900, fill: '#C9D4EE', stroke: INK, sw: 6, align: 'center' });
+  if (f.inv > 0 && !s.exe && !s.cine && s.phase === 'fight' && f.st !== 'ko' && f.st !== 'down') txt('代你操作中 ⇄', f.x, yb - h - 30, { size: 26, w: 900, fill: '#C9D4EE', stroke: INK, sw: 6, align: 'center' });
   // 第 40 圈：架招时那圈规整的细椭圆去掉（GPT 审图第 6 条），只留身后的墨环
   if (f.burn && (s.f + f.idx * 7) % 9 === 0) s.fx.push({ k: 'smoke', x: f.x + (hash(s.f) - 0.5) * 60, y: f.ch.h * 0.85, t: 0, life: 40 });
   if (f.buff) txt(f.buff.name + ' ' + Math.ceil(f.buff.t / 60) + 's', f.x, yb - h - 30, { size: 26, w: 900, fill: '#FFE066', stroke: INK, sw: 6, align: 'center' });
@@ -265,6 +272,11 @@ function drawFighter0(s, f, FL) {
     g.globalAlpha = 0.5; g.strokeStyle = '#BFE6FF'; g.lineWidth = 3; g.beginPath(); g.ellipse(f.x, cy + 6, R * 1.12, R * 0.27, 0, 0, 7); g.stroke(); g.restore();
     if (t % 4 === 0 && s._bkf !== s.f) { s._bkf = s.f; s.fx.push({ k: 'dust', x: f.x + (hash(t + f.x) - 0.5) * 160, y: 0, t: 0, life: 14, small: true, own: f.idx }); } }
   if (id === 'whalefall' && t >= 26 && !f.mv.land) { for (let i = 4; i >= 1; i--) spr(p.name, x - f.vx / 60 * i * 3, yb + p.dy + i * 26, h, { flip, rot: p.rot, a: 0.3 / i, env: { col: '#7FD4FF', a: 0.8, bot: 0 } }); g.save(); g.globalCompositeOperation = 'lighter'; g.strokeStyle = 'rgba(127,212,255,0.5)'; g.lineWidth = 30; g.lineCap = 'round'; g.beginPath(); g.moveTo(f.x - face * 20, yb - h * 0.4); g.lineTo(f.x - face * 260, yb - h * 0.4 - 380); g.stroke(); g.restore(); }      // 鲸落：蓝色残影 + 一道水痕
+  if (id === 'whalefall' && t >= 8 && (!f.mv.land || t - f.mv.land < 30) && !/[?&]summon=0/.test(location.search)) { const L = f.mv.land, op = s.F[1 - f.idx], tx = L ? f.x : op.x, sx = tx - face * 1500, sy = FL - 950, ex = tx + face * 120, ey = FL + 60, q = L ? 1 + (t - L) / 16 : Math.min(0.97, (t - 8) / 24), wx = sx + (ex - sx) * q, wy = sy + (ey - sy) * q, an = Math.atan2(ey - sy, ex - sx), al = Math.min(1, (t - 8) / 8) * (L ? Math.max(0, 1 - (t - L) / 26) : 1);      // 第 77 圈：鲸落 = 召唤巨鲸：一条发光巨鲸跟着她从天上斜着扎进地面（地面以下裁掉，像扎进水里），落地掀起水柱；?summon=0 关
+    g.save(); g.beginPath(); g.rect(-3000, -3000, 9000, FL + 3006); g.clip(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = al; g.translate(wx, wy); g.rotate(an); if (Math.cos(an) < 0) g.scale(1, -1); whaleSil(150, s.f, 0); g.globalAlpha = al * 0.6; whaleSil(150, s.f, 0); g.restore();
+    if (!L) { g.save(); g.globalCompositeOperation = 'lighter'; g.strokeStyle = 'rgba(160,220,255,' + (0.35 * al).toFixed(3) + ')'; g.lineWidth = 3; for (let i = 0; i < 7; i++) { const o = (i - 3) * 40, nx = -Math.sin(an) * o, ny = Math.cos(an) * o; g.beginPath(); g.moveTo(wx + nx - Math.cos(an) * 760, wy + ny - Math.sin(an) * 760); g.lineTo(wx + nx - Math.cos(an) * 420, wy + ny - Math.sin(an) * 420); g.stroke(); } g.restore(); }      // 巨鲸身后的速度线
+    if (L) { const k = (t - L) / 30, H0 = 820 * E.out3(Math.min(1, k * 3.2)) * (1 - k * 0.35), W0 = 170 + 160 * k; g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = Math.max(0, 1 - k) * 0.75; g.fillStyle = lg(0, FL - H0, 0, FL, ['rgba(190,235,255,0)', 'rgba(170,225,255,0.55)', 'rgba(230,248,255,0.9)']); g.beginPath(); g.moveTo(tx - W0, FL); g.quadraticCurveTo(tx - W0 * 0.5, FL - H0 * 0.6, tx - W0 * 0.2, FL - H0); g.quadraticCurveTo(tx, FL - H0 * 1.08, tx + W0 * 0.2, FL - H0); g.quadraticCurveTo(tx + W0 * 0.5, FL - H0 * 0.6, tx + W0, FL); g.closePath(); g.fill();
+      g.fillStyle = 'rgba(220,245,255,0.9)'; for (let i = 0; i < 22; i++) { const a = -Math.PI / 2 + (hash(i * 3.1) - 0.5) * 2.2, v = 600 + hash(i * 5.7) * 700, u = k * 1.6, px = tx + Math.cos(a) * v * u, py = FL - H0 * 0.5 + Math.sin(a) * v * u + 900 * u * u; g.beginPath(); g.arc(px, py, 5 + hash(i) * 7, 0, 7); g.fill(); } g.restore(); } }      // 水柱 + 四散水珠
   if (id === 'whalefall' && f.mv.land && t - f.mv.land < 24) { const k = (t - f.mv.land) / 24; g.save(); g.globalAlpha = 1 - k; g.fillStyle = '#BFE9FF'; for (let i = 0; i < 14; i++) { const R = hash(i * 3.3 + f.mv.land), dx = (i - 6.5) * 34 * (1 + k * 1.6), hh = (120 + R * 220) * Math.sin(Math.min(1, k * 2.2) * Math.PI * 0.9); g.beginPath(); g.ellipse(f.x + dx, FL - hh, 14 + R * 10, 22 + R * 14, 0, 0, 7); g.fill(); } g.restore(); }      // 落地掀起的水浪
   if (id === 'eightclaw' && f.mv.got) { const u = t - f.mv.got, op = s.F[1 - f.idx], oy = FL - op.y - op.ch.h * 0.5;      // 八连猫爪：每一下一道不同角度的三条爪痕，最后炸开
     for (let i = 0; i < 9; i++) { const t0 = 3 + i * 6; if (i === 8 ? u < 56 : (u < t0 || t0 > 48)) continue; const age = u - (i === 8 ? 56 : t0); if (age > 10) continue; const k = age / 10, an = -1.1 + i * 0.55 + (i % 2) * 2.2;
@@ -308,6 +320,7 @@ const STAGE_FX = {
   nextdoor: { motes: [1414, 300, 220, 260], steam: [[1741, 490]] },
 };
 function drawStageFx(s, kick) {
+  if (typeof STAGE2 !== 'undefined' && STAGE2[s.stage]) STAGE2[s.stage](s, kick);      // 第 68 圈：动态舞台（js/stage2.js）
   const D = STAGE_FX[s.stage]; if (!D) return; const t = s.f, jig = kick > 0.02 ? (hash(t) - 0.5) * 10 * kick / 0.05 : 0;
   g.save(); g.translate(0, jig);
   if (D.tank) { const [cx, cy, rx, ry] = D.tank; g.save(); g.beginPath(); g.ellipse(cx, cy, rx, ry, 0, 0, 7); g.clip();      // 水族窗：鱼群游过 + 气泡往上冒
@@ -490,6 +503,7 @@ function drawFx(s, FL) {
     if (q.k === 'spark' && q.who != null && (q.mvid || q.src === 'proj')) spBurst(s, q, x, y, k);      // 必杀命中：大一号的冲击环 + 角色主题碎片
     if (q.k === 'spark' && q.t < 14 && (q.lvl >= 2 || q.tier)) texBurst(q, x, y, k);      // 第 33 圈：贴图星爆 / 刀光（GPT 出的手绘特效）
     if (q.k === 'spark' && q.tier) tierBurst(q, x, y, k);      // 第 30 圈：COUNTER（金）/ PUNISH COUNTER（红）命中特效多一层
+    if (q.k === 'spark' && typeof FX2 !== 'undefined') FX2.spark(s, q, x, y, k);      // 第 68 圈：锐利光刃线 + 细冲击圈 + 闪点（js/fx2.js）
     if (q.k === 'ctrtxt') continue;      // 第 34 圈：横幅改到屏幕固定位置（打的一方那一侧），不压在两人中间
     if (q.k === 'wallhit') { wallHitFx(q, x, y, k, FL); continue; }
     if (q.k === 'gbounce') { gBounceFx(q, x, FL, k); continue; }
@@ -548,6 +562,7 @@ function drawHUD(s, o = {}) {
   const [a, b] = s.F; g.save(); g.fillStyle = lg(0, 0, 0, 230, ['rgba(4,8,30,0.72)', 'rgba(4,8,30,0)']); g.fillRect(0, 0, W, 230); g.fillStyle = lg(0, 940, 0, 1080, ['rgba(4,8,30,0)', 'rgba(4,8,30,0.6)']); g.fillRect(0, 940, W, 140); g.restore();
   for (const f of s.F) {
     const L = f.idx === 0, d = L ? 1 : -1, X = v => L ? v : W - v, bw = 640, bx = 216, by = 58, bh = 40, r = clamp(f.hp / f.hpMax), tr = clamp(f.trail / f.hpMax);
+    const HA = hudFade(s, f.idx); g.save(); g.globalAlpha = HA;      // 第 76 圈：头碰到 HUD 时这一侧上方 HUD 半透明
     portrait(s, f, X(110), 112, 164, !L);
     // 血条（向中间掉）
     const bar = (frac, fill) => { if (frac <= 0) return; g.save(); g.beginPath(); const x0 = X(bx + bw), x1 = X(bx + bw - bw * frac); g.moveTo(x0 + d * 0, by); g.lineTo(x1 - d * 14, by); g.lineTo(x1 + d * 0, by + bh); g.lineTo(x0 + d * 14, by + bh); g.closePath(); g.fillStyle = fill; g.fill(); g.restore(); };
@@ -556,6 +571,7 @@ function drawHUD(s, o = {}) {
     txt(f.ch.name, X(bx), by + bh + 52, { size: 44, w: 900, fill: '#fff', stroke: f.ch.ink, sw: 9, align: L ? 'left' : 'right' });
     const nw = mw(f.ch.name, 44, 900); txt(f.ch.en === f.ch.name ? f.ch.style : f.ch.en + ' · ' + f.ch.style, X(bx + nw + 18), by + bh + 50, { size: 24, w: 700, fill: 'rgba(230,240,255,0.92)', align: L ? 'left' : 'right', sh: ['rgba(0,0,30,0.9)', 6, 0, 1] });
     for (let i = 0; i < 2; i++) { g.save(); g.translate(X(bx + bw - 30 - i * 44), by + bh + 36); g.rotate(Math.PI / 4); g.fillStyle = i < s.wins[f.idx] ? '#FFE066' : 'rgba(255,255,255,0.18)'; g.strokeStyle = '#fff'; g.lineWidth = 3; g.fillRect(-12, -12, 24, 24); g.strokeRect(-12, -12, 24, 24); g.restore(); }
+    g.restore();
     // TOKEN 槽
     const mx = 70, my = 1004, mwid = 440, mh = 26, mr = clamp(f.meter / 100), full = f.meter >= 100, pulse = full ? 0.6 + 0.4 * Math.sin(s.f * 0.4) : 0;
     g.save(); rr(L ? mx : W - mx - mwid, my, mwid, mh, 13); g.fillStyle = INK; g.fill(); g.lineWidth = 3; g.strokeStyle = full ? mixc('#FFFFFF', '#FFE066', pulse) : 'rgba(255,255,255,0.8)'; g.stroke(); if (mr > 0) { g.save(); rr(L ? mx : W - mx - mwid, my, mwid, mh, 13); g.clip(); g.fillStyle = full ? lg(0, my, 0, my + mh, ['#FFF3A8', '#FFB020']) : lg(0, my, 0, my + mh, ['#BFE3FF', '#4D6BFE']); g.fillRect(L ? mx : W - mx - mwid * mr, my, mwid * mr, mh); g.restore(); } g.restore();
@@ -586,6 +602,7 @@ function drawBanners(s) {
   const t = s.pt / 60, cx = 960;
   if (s.phase === 'intro') { const n = s.introF / 60; const label = s.final ? 'FINAL ROUND' : 'ROUND ' + s.round;
     if (t > 0.2 && t < n - 0.75) { const a = 1 - tw(t, n - 1.0, 0.25), k = tw(t, 0.2, 0.2, E.out5); g.save(); g.globalAlpha = a; g.fillStyle = 'rgba(8,10,40,0.82)'; g.beginPath(); g.moveTo(cx - 1100 * k, 360); g.lineTo(cx + 1100 * k + 60, 360); g.lineTo(cx + 1100 * k, 600); g.lineTo(cx - 1100 * k - 60, 600); g.closePath(); g.fill(); g.fillStyle = '#E8384F'; g.fillRect(cx - 1100 * k, 352, 2200 * k, 8); g.fillStyle = '#FFE066'; g.fillRect(cx - 1100 * k, 600, 2200 * k, 8); g.restore(); }      // 街机式：ROUND 底下先横着拉出一条黑带
+    if (t > 0.2 && t < n - 0.75 && typeof P5 !== 'undefined' && P5.roundTag) P5.roundTag(s, t, n, 1 - tw(t, n - 1.0, 0.25));      // 第 69 圈：P5 式网点 + 剪报字「第 N 回合」
     if (t > 0.35 && t < n - 0.75) { const a = 1 - tw(t, n - 1.0, 0.25); slam(label, cx, 470, 190, t, 0.35, { fam: F.en, fill: lg(0, -150, 0, 20, ['#FFFFFF', '#FFE066']), stroke: '#E8384F', sw: 16, stroke2: INK, sw2: 40, skew: -0.14, a, ls: 6 }); txt(STAGES[s.stage].name, cx, 560, { size: 44, w: 900, fill: '#fff', stroke: INK, sw: 10, align: 'center', a: a * tw(t, 0.6, 0.25), ls: 6 }); }
     if (t >= n - 0.75) txt('准备……', cx, 500, { size: 110, w: 900, fill: '#fff', stroke: INK, sw: 18, align: 'center', a: 0.7 + 0.3 * Math.sin(t * 20), ls: 10 }); }
   if (s.phase === 'fight' && t < 0.85) { const a = 1 - tw(t, 0.6, 0.25); flashAt(t, 0, 0.2, '#fff', 0.8); speedLines(t, cx, 520, { n: 56, r0: 280, a: 0.5 * a, col: '#FFE066', fps: 30, seed: 3 }); g.save(); g.globalAlpha = a * (1 - t / 0.85); g.strokeStyle = '#FFF3A8'; g.lineWidth = 18 * (1 - t / 0.85) + 2; g.beginPath(); g.ellipse(cx, 520, 200 + t * 1400, 90 + t * 600, 0, 0, 7); g.stroke(); g.restore(); slam('FIGHT!', cx, 520, 300, t, 0, { fam: F.en, fill: lg(0, -240, 0, 20, ['#FFF3A8', '#FF8A1F']), stroke: '#B81F3A', sw: 22, stroke2: INK, sw2: 54, skew: -0.14, a, from: 3.2 }); }      // FIGHT：放射线 + 一圈冲击环
@@ -631,7 +648,7 @@ function drawCheer(s) {       // 评论区应援：弹幕刷屏
   if (age < 70) slam('评论区应援！', 960, 228, 96, age / 60, 0, { fill: '#FFE066', stroke: '#B81F3A', sw: 12, stroke2: INK, sw2: 28, a: age > 50 ? 1 - (age - 50) / 20 : 1 });
 }
 // 世界坐标（x，离地高度 y）→ 屏幕坐标
-function w2s(s, x, y) { const FL = STAGES[s.stage].floor, z = s.cam.z, cy = FL - 150; let X = (x - s.cam.x - 960) * z + 960, Y = (FL - y - cy) * z + cy; const C = s._cv; if (C && C.m) { const [px, py, r, k, tx, ty] = C.m, dx = (X - px) * k, dy = (Y - py) * k, c = Math.cos(r), sn = Math.sin(r); X = px + dx * c - dy * sn + tx; Y = py + dx * sn + dy * c + ty; } return [X, Y]; }
+function w2s(s, x, y) { const FL = STAGES[s.stage].floor, z = s.cam.z, cy = FL - 150; let X = (x - s.cam.x - 960) * z + 960, Y = (FL - y - cy) * z + cy + (s._jl || 0) * z; const C = s._cv; if (C && C.m) { const [px, py, r, k, tx, ty] = C.m, dx = (X - px) * k, dy = (Y - py) * k, c = Math.cos(r), sn = Math.sin(r); X = px + dx * c - dy * sn + tx; Y = py + dx * sn + dy * c + ty; } return [X, Y]; }
 // 第 54 圈（SF6_REF 第 1、2 项）：镜头倾斜 / 推近 / 追随击飞 + 整屏运动模糊。重击和必杀命中：镜头朝命中点推近 1.2–1.6 倍、荷兰角 4–9 度再摇回；
 // 被打飞：镜头追着人；同时给后处理一个方向模糊（沿击退方向）和径向模糊（超必杀，以命中点为中心）。只改画面，不改判定。?camfx=0 关
 const CAMFX = new URLSearchParams(location.search).get('camfx') !== '0';
@@ -661,7 +678,7 @@ const JET = { ds: 'q_jetwater', gem: 'q_jetpflame', qwen: 'q_jetfire', claude: '
 const jetOf = id => JET[id] && IM['x:' + JET[id]] ? JET[id] : null;
 const ELEM = { ds: 'q_water', gem: 'q_pflame', gpt: 'q_dragon', grok: 'q_redshock', kimi: 'q_moon', qwen: 'q_fanfire', glm: 'q_redshock', claude: 'q_blast', dou: 'q_flash' };
 function seqTex(n, fr, x, y, w, rot = 0, a = 1, add = true, col = null, flip = false, sy = 1) {
-  const im = col ? fxTint(n, col) : IM['x:' + n]; if (!im || a <= 0.01) return; const i = Math.max(0, Math.min(7, Math.floor(fr))), cw = im.width / 4, chh = im.height / 2;
+  const im = col ? fxTint(n, col) : fxIm(n); if (!im || a <= 0.01) return; const i = Math.max(0, Math.min(7, Math.floor(fr))), cw = im.width / 4, chh = im.height / 2;
   g.save(); g.translate(x, y); g.rotate(rot); g.scale(flip ? -1 : 1, sy); g.globalAlpha *= Math.min(1, a); if (add) g.globalCompositeOperation = 'lighter'; g.drawImage(im, (i % 4) * cw, (i >> 2) * chh, cw, chh, -w / 2, -w / 2, w, w); g.restore(); }
 function vfxAdd(s, o) { (s._vx || (s._vx = [])).push(Object.assign({ f0: s.f, dur: 24, w: 300, a: 1, add: true, rot: 0 }, o)); if (s._vx.length > 40) s._vx.shift(); }
 function vfxSparks(s, x, y, n, dir, col, spd = 1) { const P = s._vp || (s._vp = []); for (let i = 0; i < n; i++) { const h1 = hash(x * 0.37 + i * 1.7 + s.f), h2 = hash(y * 0.53 + i * 2.3 + s.f * 0.7), an = (h1 - 0.5) * Math.PI * 1.6 + (dir < 0 ? Math.PI : 0), v = (6 + h2 * 22) * spd; P.push({ x, y, vx: Math.cos(an) * v, vy: Math.sin(an) * v + 6 + h2 * 6, life: 18 + h1 * 26, t: 0, col, w: 1.5 + h2 * 2.5 }); } if (P.length > 400) P.splice(0, P.length - 400); }
@@ -721,23 +738,40 @@ function cutIn(s, f) {
   if (u >= 3) txt(u < 10 ? '……我们谈谈。' : '（微笑）', dir > 0 ? 1180 : 740, cy + 20, { size: 76, w: 900, fill: '#fff', stroke: ch.ink, sw: 12, align: 'center', skew: -0.1, sc: 1 + 0.15 * Math.max(0, 1 - (u - 3) / 4) });
   g.restore();
 }
+function jumpLift(s, L3C) {      // 第 75 圈：跳得更高后镜头往上跟（平滑）；电脑对电脑 / 成片 v1 不动；第 76 圈：按头顶位置再多抬一点（头别钻进 HUD），地面最多压到屏幕下沿外 40
+  if (L3C || s.v1 || !s.ctrl || !s.ctrl.includes('human')) return (s._jl = 0);
+  const z = s.cam.z, my = Math.max(...s.F.map(f => f.st === 'held' ? 0 : f.y)), top = Math.max(...s.F.map(f => f.st === 'held' ? 0 : f.y + f.ch.h * (f.mixK || 1) * 0.96));
+  const need = top - 150 - 655 / z, cap = Math.min(420, 365 / z - 150), tg = Math.max(0, Math.min(cap, Math.max((my - 120) * 0.7, need)));
+  s._jl = (s._jl || 0) + (tg - (s._jl || 0)) * (tg > (s._jl || 0) ? 0.24 : 0.12); return s._jl < 0.5 ? 0 : s._jl; }
+function hudFade(s, side) {      // 第 76 圈：人跳到最高点头还是碰到上方血条 / 头像时，那一侧 HUD 变半透明（平滑），落下来恢复
+  if (!s._hudA) s._hudA = [1, 1]; let tg = 1;
+  if (s.phase === 'fight' && typeof w2s === 'function') for (const f of s.F) { if (f.y < 60 || f.st === 'held') continue; const hp = w2s(s, f.x, f.y + f.ch.h * (f.mixK || 1) * 0.92), r = 130 * s.cam.z; if (hp[1] < 225 && (side === 0 ? hp[0] - r < 900 : hp[0] + r > 1020)) tg = Math.min(tg, 0.32 + 0.68 * clamp((hp[1] - 60) / 165)); }
+  s._hudA[side] += (tg - s._hudA[side]) * (tg < s._hudA[side] ? 0.35 : 0.15); return s._hudA[side]; }
+function skyFill(s, JL) {      // 镜头抬起来时场地图上沿以上：把图最上面一条镜像接上去，再压暗
+  const im = IM['g:' + s.stage] || (s.stage === 'waterside' && typeof WSP !== 'undefined' && WSP.sky()) || IM['g:office'], h = Math.min(im.height, 480); g.save(); g.scale(1, -1); g.drawImage(im, 0, 0, im.width, h, 0, 0, im.width, h); g.restore();
+  g.save(); g.fillStyle = lg(0, -h, 0, 0, ['rgba(4,6,20,0.85)', 'rgba(4,6,20,0.25)']); g.fillRect(0, -h, im.width, h); g.restore(); }
 function drawFight(s, o = {}) {
-  if (s.cine && s.cine.t >= CB.A && s.cine.t < CB.R) { drawCine(s); return; }      // 演出把整个画面盖住时不画场地（省一半绘制时间）
+  if (!s._fxw && typeof FEATH !== 'undefined') { s._fxw = 1; for (const n in FEATH) fxIm(n); }      // 第 70 圈：开场先把羽化贴图处理好（不让第一次升龙卡一下）
+  if (s.cine && !s.cine.live && s.cine.t >= CB.A && s.cine.t < CB.R) { drawCine(s); return; }      // 演出把整个画面盖住时不画场地（省一半绘制时间）
   let kick = 0, big = null, push = 0, hflash = 0; for (const q of s.fx) if (q.k === 'spark' && q.lvl >= 2 && q.t < 12) { const k0 = Math.max(0, 1 - q.t / 12); kick = Math.max(kick, k0 * (q.lvl === 3 ? 0.05 : 0.035)); if (q.t < 4) big = q; if (q.kind && q.kind !== 'punch') { push = (q.dir || 1) * Math.sin(Math.min(1, q.t / 3) * Math.PI / 2) * k0 * (q.lvl === 3 ? 34 : 22); if (q.t < 2) hflash = Math.max(hflash, q.lvl === 3 ? 0.32 : 0.18); } }      // 重的一下：镜头往里顶、朝击退方向推一下再回正，加一两帧白闪      // 重的一下：镜头往里顶一下
   const koK = s.phase === 'ko' && !s.timeUp ? (s.pt < 50 ? E.out3(Math.min(1, s.pt / 10)) : Math.max(0, 1 - (s.pt - 50) / 20)) : 0, koF = koK > 0 ? s.F[s.winner < 0 ? 0 : 1 - s.winner] : null;      // K.O.：镜头推向倒下的人，背景抽色
   if (koF && !CAMFX) push += (960 - (koF.x - s.cam.x)) * 0.45 * koK;      // 第 60 圈：有 camFx 时由它负责取景，这里不再额外推向倒下的人
-  const FL = STAGES[s.stage].floor, [a, b] = s.F, z = s.cam.z * (1 + kick) * (1 + (CAMFX ? 0 : 0.22) * koK), cx = 960, cy = FL - 150, m = s.shake, CV = camFx(s, FL);
-  g.save(); camApply(CV); g.translate(cx + Math.sin(s.f * 2.7) * m + push, cy + Math.cos(s.f * 3.3) * m * 0.7); g.scale(z, z); g.translate(-cx, -cy); g.translate(-s.cam.x, 0);
-  g.drawImage(IM['g:' + s.stage] || IM['g:office'], 0, 0); g.fillStyle = 'rgba(6,10,40,0.2)'; g.fillRect(0, 0, WORLD_W, 1080);
+  const L3C = s.cine && s.cine.live && typeof LIVE3 !== 'undefined' ? LIVE3.cam(s) : null; if (L3C) push += L3C.px;      // 第 72 圈：实时三级的镜头（推近 + 对准两人）
+  const FL = STAGES[s.stage].floor, [a, b] = s.F, z = s.cam.z * (L3C ? L3C.z : 1) * (1 + kick) * (1 + (CAMFX ? 0 : 0.22) * koK), cx = 960, cy = FL - 150, m = SHAKE_OLD ? s.shake : Math.max(0, s.shake - 7) * 0.6, CV = camFx(s, FL);      // 第 68 圈（用户：震屏太高频）：轻中击基本不震（≤7 全吃掉），重击 / 超必杀 / K.O. 只剩约一半；?shake=old 回到旧版
+  const JL = jumpLift(s, L3C); g.save(); camApply(CV); g.translate(cx + Math.sin(s.f * (SHAKE_OLD ? 2.7 : 1.4)) * m + push, cy + (L3C ? L3C.py : 0) + JL * z + Math.cos(s.f * (SHAKE_OLD ? 3.3 : 1.7)) * m * 0.7); g.scale(z, z); g.translate(-cx, -cy); g.translate(-s.cam.x, 0);      // 频率也降一半（第 68 圈 H：这句注释原来吞掉了后面的 scale/translate，镜头整个错位，已挪到行尾）
+  if (!IM['g:' + s.stage] && typeof WSP !== 'undefined' && s.stage === 'waterside') WSP.base(s); else g.drawImage(IM['g:' + s.stage] || IM['g:office'], 0, 0); if (JL > 1) skyFill(s, JL); if (typeof STAGE2B !== 'undefined' && STAGE2B[s.stage] && (IM['g:' + s.stage] || s.stage === 'waterside')) STAGE2B[s.stage](s); g.fillStyle = 'rgba(6,10,40,0.2)'; g.fillRect(0, 0, WORLD_W, 1080);
   if (s.ctrl && s.ctrl.includes('human') && !(typeof QS !== 'undefined' && QS.get('bgsat'))) { g.save(); g.globalCompositeOperation = 'saturation'; g.fillStyle = 'rgba(128,128,128,0.4)'; g.fillRect(0, 0, WORLD_W, 1080); g.restore(); g.save(); g.fillStyle = 'rgba(8,10,28,0.14)'; g.fillRect(0, 0, WORLD_W, 1080); g.restore(); g.save(); g.globalCompositeOperation = 'multiply'; g.fillStyle = lg(0, FL - 120, 0, 1080, ['rgba(235,235,240,1)', 'rgba(150,150,170,1)']); g.fillRect(0, FL - 120, WORLD_W, 1200 - FL); g.restore(); }      // 第 36 圈：背景降饱和 26%、地板高光压暗（人物和背景分开，GPT 审图第 7 条）
   drawStageFx(s, kick);
   if (koK > 0) { g.save(); g.globalCompositeOperation = 'saturation'; g.fillStyle = 'rgba(128,128,128,' + (0.9 * koK).toFixed(3) + ')'; g.fillRect(0, 0, WORLD_W, 1080); g.restore(); g.save(); g.fillStyle = 'rgba(10,6,20,' + (0.35 * koK).toFixed(3) + ')'; g.fillRect(0, 0, WORLD_W, 1080); g.restore(); }      // K.O.：场地抽成灰、压暗，人保持彩色
   g.fillStyle = lg(0, FL - 60, 0, 1080, ['rgba(4,8,30,0)', 'rgba(4,8,30,0.28)']); g.fillRect(0, FL - 60, WORLD_W, 1140 - FL);
   if (typeof MEME !== 'undefined') MEME.bg(s, FL);      // D 代理：处决时场地压暗 + 打光
+  if (L3C) LIVE3.ghosts(s, FL);      // 第 72 圈：场地压暗 + 攻击方主题色残影
   for (const e of s.E) if (!e.dead) drawEntity(s, e, FL);
   const order = (a.st === 'hit' || a.st === 'launch' || a.st === 'down' || a.st === 'ko' || a.st === 'block') ? [a, b] : [b, a];
   for (const f of order) drawFighter(s, f, FL);
   for (const p of s.P) if (!p.dead) drawProjLife(s, p, FL);
+  if (L3C) LIVE3.world(s, FL);      // 第 72 圈：乱舞的命中火花 / 光刃 / 冲击圈
+  if (typeof STAGE2F !== 'undefined' && STAGE2F[s.stage] && !s.cine) STAGE2F[s.stage](s, FL);      // 第 71 圈：近景层（stage2.js）
   drawFx(s, FL); drawVfx(s, FL); vicGhost(s); if (typeof MEME !== 'undefined') MEME.world(s, FL);      // D 代理：处决的泪花 / 每拳冲击、饭粒弹碎饭
   g.restore();
   if (s._ex && s.f - s._ex.f0 < 5) { const u = s.f - s._ex.f0; g.save(); if (u < 1 && !s._ex.dip) { g.globalCompositeOperation = 'lighter'; g.globalAlpha = s._ex.k; g.fillStyle = '#FFF4D8'; } else { g.globalAlpha = 0.2 * (1 - u / 5); g.fillStyle = '#05030A'; } g.fillRect(0, 0, W, H); g.restore(); }      // r55：只在主重击给 1 帧提亮，其余 = 背景短暂压暗 20%（让接触点的白核更显眼）      // 命中曝光闪（2–4 帧整体提亮）
@@ -746,15 +780,17 @@ function drawFight(s, o = {}) {
   if (s.styleT > 0) stylePass(s);
   if (hflash > 0) { g.save(); g.globalAlpha = hflash; g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); g.restore(); }
   if (s.flash > 0) { g.save(); g.globalAlpha = Math.min(1, s.flash); g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); g.restore(); }
+  if (typeof FX2 !== 'undefined' && FX2.screen && !s.cine) FX2.screen(s); if (typeof P5 !== 'undefined' && P5.koLines && s.phase === 'ko' && !s._noKO) P5.koLines(s, s.koT);      // K.O. 集中线（HUD 之下）      // 第 69 圈：光刃线在屏幕层画，白闪 / 模糊盖不住
   if (s.phase === 'ko' && s.pt < 40) vignette(0.5, 0.35, '120,0,20');
   if (s.dark > 0) drawDark(s);
   for (const f of s.F) cutIn(s, f);      // 第 67 圈：Claude「我们谈谈」抓领特写
-  if (!o.noHud && !s.exe) drawHUD(s, o);      // D 代理：处决演出时不画 HUD（黑边电影感）
+  if (!o.noHud && !s.exe) { const dv = L3C ? s.F[1 - s.cine.who] : null, hp0 = dv ? dv.hp : 0; if (dv) dv.hp = LIVE3.hp(s); drawHUD(s, o); if (dv) dv.hp = hp0; }      // 第 72 圈：演出里血条跟着每一下掉（只是显示，画完还原）      // D 代理：处决演出时不画 HUD（黑边电影感）
   for (const q of s.fx) if (q.k === 'ctrtxt' && q.t < q.life) { const L = q.who === 1 ? -1 : 1; ctrText(q, L > 0 ? 330 : 1590, 300, q.t / q.life); }
   if (s.dbl > 0) { const a = Math.min(1, s.dbl / 20); txt('业务翻倍中 ×2 · ' + Math.ceil(s.dbl / 60) + 's', 960, 232, { size: 40, w: 900, fill: '#FFE066', stroke: '#B81F3A', sw: 9, align: 'center', a }); }
   if (s.cheerT > 0) drawCheer(s);
-  if (s.freeze > 0 && s.fz) drawCutin(s);
-  if (s.cine) drawCine(s);
+  if (s.freeze > 0 && s.fz) { if (typeof P5 !== 'undefined') P5.cutin(s); else drawCutin(s); }      // 第 69 圈：P5 式拼贴切入（js/fx2.js，?oldcut=1 旧版）
+  if (s.cine && !s.cine.live) drawCine(s);
+  if (L3C) LIVE3.screen(s);      // 第 72 圈：招式名条 / 连击数 / 终结白闪
   if (typeof MEME !== 'undefined') MEME.screen(s);      // D 代理：处决的黑边 / 招式名 / 连打数
   drawBanners(s);
 }
@@ -763,12 +799,12 @@ const MVN = { dp: { ds: '鲸鱼顶', gem: '炸毛升天' }, slide: { ds: '深度
 Object.assign(MVN.dp, { gpt: '龙尾上挑', grok: '斧柄上挑', kimi: '月牙挑', glm: '书脊上顶', qwen: '开扇上撩', claude: '但是——', dou: '宝宝冲天拳' });
 MVN.spin = { surf: '冲浪滑行', nin: '旋身踢', ds: '鲸尾回旋', gem: '追尾巴', gpt: '龙卷', grok: '大风车', kimi: '卷轴龙卷', glm: '翻页旋踢', qwen: '扇舞旋身', claude: '转身回礼', dou: '陀螺' };
 Object.assign(MVN.dp, { surf: '浪尖翻板', nin: '加载转圈斩' }); MVN.vanish = Object.assign(MVN.vanish || {}, { nin: '404 隐身' }); MVN.shuri = Object.assign(MVN.shuri || {}, { nin: '验证码手里剑' }); MVN.wcannon = { surf: '热搜水炮' };      // 第 67 圈 C：客串招式名
-MVN.boom = { grok: '回旋斧', glm: 'Z 字飞书' }; Object.assign(MVN, { kyo3: { gpt: '首先、其次、最后' }, dkick: { gpt: '两段蹬踢' }, wing: { gpt: '龙翼突进' }, gsum: { gpt: '我来总结一下（跑抓，防不住）' }, kyo3b: { gpt: '总之、换句话说、综上所述' }, three: { gpt: '数字弹' }, fan: { qwen: '飞扇' }, elbow: { qwen: '贴地突进肘' }, alts: { qwen: '叫两个小号' }, swat: { grok: '拍掉' }, rungrab: { grok: '跑抓' }, grab360: { grok: '公开处刑' }, siberia: { grok: '远距离抓（往身后摔）' }, emoji: { dou: '表情包弹' }, tenshou: { dou: '宝宝升天踢（对空）' }, pose: { dou: '摆拍架势' }, phone: { dou: '打电话' }, fkk: { glm: '满分飞踢' }, otk: { ds: '加班连打' }, bakkai: { ds: '鲸尾回旋' }, ddk: { ds: '鲸鳍下踢' }, dpk: { ds: '鲸鱼顶' }, mstep: { ds: '摸鱼步' }, bslam: { ds: '饭盆砸' }, stamp: { ds: '盖章驳回' }, claw3: { gem: '三段爪' }, flip: { gem: '翻面' }, bclaw: { gem: '后跃斜爪' }, flurry: { gem: '猫猫拳' }, knead: { gem: '踩奶' }, mambo: { gem: '哈基米曼波' }, snatch: { gem: '叼走' }, glide: { qwen: '飞扇滑翔' }, bflip: { qwen: '翻身肘' }, aclaw: { gem: '空中斜爪' } }); MVN.paper = { claude: '长回复（纸页，慢而大）' }; Object.assign(MVN, { paper2: { claude: '贴地纸页' }, excuse: { claude: '抱歉打断一下' }, ucounter: { claude: '上段当身' }, lcounter: { claude: '下段当身' }, phonegrab: { claude: '把手机拿过来' }, mcounter: { claude: '中段当身' }, otg: { claude: '再确认一下（倒地追打）' }, moon: { kimi: '慢速月球' }, lobmoon: { kimi: '抛个月亮（抛物线）' }, zbreath: { kimi: '梦话喷射（近身多段）' }, warpf: { kimi: '月相闪现（身前）' }, warpb: { kimi: '月相闪现（身后）' }, usb: { gpt: '让她自己写（丢 U 盘）' } });
+MVN.boom = { grok: '回旋斧', glm: 'Z 字飞书' }; MVN.blade = { glm: '红笔批注' }; Object.assign(MVN, { kyo3: { gpt: '首先、其次、最后' }, dkick: { gpt: '两段蹬踢' }, wing: { gpt: '龙翼突进' }, gsum: { gpt: '我来总结一下（跑抓，防不住）' }, kyo3b: { gpt: '总之、换句话说、综上所述' }, three: { gpt: '数字弹' }, fan: { qwen: '飞扇' }, elbow: { qwen: '贴地突进肘' }, alts: { qwen: '叫两个小号' }, swat: { grok: '拍掉' }, rungrab: { grok: '跑抓' }, grab360: { grok: '公开处刑' }, siberia: { grok: '远距离抓（往身后摔）' }, emoji: { dou: '表情包弹' }, tenshou: { dou: '宝宝升天踢（对空）' }, pose: { dou: '摆拍架势' }, phone: { dou: '打电话' }, fkk: { glm: '满分飞踢' }, otk: { ds: '加班连打' }, bakkai: { ds: '鲸尾回旋' }, ddk: { ds: '鲸鳍下踢' }, dpk: { ds: '鲸鱼顶' }, mstep: { ds: '摸鱼步' }, bslam: { ds: '饭盆砸' }, stamp: { ds: '盖章驳回' }, claw3: { gem: '三段爪' }, flip: { gem: '翻面' }, bclaw: { gem: '后跃斜爪' }, flurry: { gem: '猫猫拳' }, knead: { gem: '踩奶' }, mambo: { gem: '哈基米曼波' }, snatch: { gem: '叼走' }, glide: { qwen: '飞扇滑翔' }, bflip: { qwen: '翻身肘' }, aclaw: { gem: '空中斜爪' } }); MVN.paper = { claude: '长回复（纸页，慢而大）' }; Object.assign(MVN, { paper2: { claude: '贴地纸页' }, excuse: { claude: '抱歉打断一下' }, ucounter: { claude: '上段当身' }, lcounter: { claude: '下段当身' }, phonegrab: { claude: '把手机拿过来' }, mcounter: { claude: '中段当身' }, otg: { claude: '再确认一下（倒地追打）' }, moon: { kimi: '慢速月球' }, lobmoon: { kimi: '抛个月亮（抛物线）' }, zbreath: { kimi: '梦话喷射（近身多段）' }, warpf: { kimi: '月相闪现（身前）' }, warpb: { kimi: '月相闪现（身后）' }, usb: { gpt: '让她自己写（丢 U 盘）' } });
 const mvName = (ch, id) => id === ch.sp.id ? ch.sp.name : (MVN[id] && MVN[id][ch.id]) || id;
 const EXTRA_QW = [['空中 J + K（对手在空中）', '空投'], ['三角跳后按拳', '飞扇滑翔（蹬墙俯冲，中段）'], ['满减券（最多 3 张）', '飞扇碰到人领券；带券的必杀自动多一段']];
 const EXTRA_CL = [['空中 ↓↘→ + 拳', '往斜下方丢纸页']];
 const EXTRA_KM = [['U / I / ↓+U（卷轴长手）', '打得远，越远伤害越低'], ['空中 ↓↘→ + 拳', '斜下月亮'], ['空中按住 ↑ / 空中 ↓ + 重拳', '睡着飘 / 钻头']];
-const EXTRA = { claude: EXTRA_CL, kimi: EXTRA_KM, gpt: [['首先 + 拳 / 脚', '其次（拳）/ 下段踢（脚），再按拳 = 上挑、按脚 = 中段砸'], ['↓↘→ + 重拳（再按拳 ×2）', '总之 → 换句话说 → 综上所述（第二套派生，最后一段中段）'], ['两段蹬踢后空中再按脚', '第三脚（往下劈）'], ['空中 ↓ + 重脚', '敲黑板（中段）']], qwen: [...EXTRA_QW, ['空中 ↓↘→ + 拳', '空中飞扇'], ['空中 ↓ + 重脚', '俯冲踢'], ['贴墙 ↑', '三角跳']], grok: [['J + U 同按', '大风车（上半身不吃飞行道具，可左右挪）'], ['K + I 同按', '下段大风车（不吃下段）'], ['→ + 重拳', '头槌（对空）'], ['空中 ↓ + 重拳 / 空中 J+K', '飞身压（中段）/ 空中抓']], dou: [['摆拍架势中按 J / U / K / I', '戳 / 掌推打飞 / 下段扫 / 跳踩（中段）'], ['← + 重脚', '跨步下劈（中段）'], ['连按轻脚', '踢踢踢'], ['空中 ↓ + 轻脚', '踩头（踩中弹起，可连踩）'], ['→ + 重脚', '翻身踢（中段）'], ['贴墙 ↑', '蹬墙跳']], glm: [['蓄力', '按住 45 步，松开后 10 步内出'], ['↓↓ + 拳', '批注：放一道慢速红笔刀波，飞书穿过它变大变强'], ['→ + 重拳 / ← + 重脚', '中段锤 / 倒钩踢'], ['↓↙←↓↙← + 脚', '二级 · 满分三连（三次后空翻踢，2 格）']] };
+const EXTRA = { claude: EXTRA_CL, kimi: EXTRA_KM, gpt: [['首先 + 拳 / 脚', '其次（拳）/ 下段踢（脚），再按拳 = 上挑、按脚 = 中段砸'], ['↓↘→ + 重拳（再按拳 ×2）', '总之 → 换句话说 → 综上所述（第二套派生，最后一段中段）'], ['两段蹬踢后空中再按脚', '第三脚（往下劈）'], ['空中 ↓ + 重脚', '敲黑板（中段）']], qwen: [...EXTRA_QW, ['空中 ↓↘→ + 拳', '空中飞扇'], ['空中 ↓ + 重脚', '俯冲踢'], ['贴墙 ↑', '三角跳']], grok: [['J + U 同按', '大风车（上半身不吃飞行道具，可左右挪）'], ['K + I 同按', '下段大风车（不吃下段）'], ['→ + 重拳', '头槌（对空）'], ['空中 ↓ + 重拳 / 空中 J+K', '飞身压（中段）/ 空中抓']], dou: [['摆拍架势中按 J / U / K / I', '戳 / 掌推打飞 / 下段扫 / 跳踩（中段）'], ['← + 重脚', '跨步下劈（中段）'], ['连按轻脚', '踢踢踢'], ['空中 ↓ + 轻脚', '踩头（踩中弹起，可连踩）'], ['→ + 重脚', '翻身踢（中段）'], ['贴墙 ↑', '蹬墙跳']], glm: [['蓄力', '按住 45 步，松开后 10 步内出'], ['↓↓ + 拳', '批注：放一道慢速红笔刀波，飞书穿过它变大变强'], ['空中 ↓↘→ + 拳', '空中飞书（斜下）'], ['→ + 重拳 / ← + 重脚', '中段锤 / 倒钩踢'], ['↓↙←↓↙← + 脚', '二级 · 满分三连（三次后空翻踢，2 格）']] };
 const SUN = { dou: { 1: '大号表情包（近身气功）', 2: '连续转发（突进连踢）' }, glm: { 1: '连环批改（连发飞书）', 2: '开卷考试（8 秒免蓄力）' }, kimi: { 1: '满月弹（按住拳蓄大）', 2: '月光柱（全屏柱）' }, ds: { 1: '干饭人（吃到饭量满级）', 2: '鲸落（俯冲连踢）' }, gem: { 1: '八连猫爪（爆前按拳追加）', 2: '炸毛光柱（定住对手）' }, gpt: { 2: '详细展开说说（瞬发乱舞）' }, qwen: { 2: '全场包邮（旋转突进）' }, grok: { 1: '热搜直升机（空中投）', 2: '全网风暴（吸人大风车）' }, claude: { 1: '逐条回复（按提示输入十下）', 2: '全文审阅（书页冲击波）' } };      // 按原型重做过的一 / 二级超必杀（出招表一行放不下长说明）
 const ROLE = { surf: '远近立回型', nin: '高速奇袭型', ds: '越吃越强型', gem: '贴身连压型', gpt: '正统波升型', qwen: '灵巧机动型', grok: '近身投技型', claude: '当身反击型', kimi: '长手牵制型', glm: '蓄力守点型', dou: '连打爆发型' };
 function drawMoveList(ch) {
@@ -778,9 +814,9 @@ function drawMoveList(ch) {
   const mv = m => J2[m] !== undefined ? J2[m] : T[m] !== undefined ? T[m] : (m === '236' ? ch.sp.id : m === '623' ? 'dp' : null);
   const AR = { '22': '↓↓', '214': '↓↙←', '623': '→↓↘', '236': '↓↘→', 'air236': '空中 ↓↘→', '41236': '半圈 ←↙↓↘→', '63214': '半圈 →↘↓↙←', '46c': '←蓄 →', '28c': '↓蓄 ↑', '360': '转一圈' };
   const MLIST = {
-    ds: [['必杀技（饭量 0–4 级：↓↓ + 拳 吃一口升一级）', ''], ['↓↘→ + 拳（再按拳）', '加班连打（0 级两段 / 1 级三段 / 3 级加踢）'], ['↓↘→ + 脚', '滑铲（下段）'], ['→↓↘ + 拳 / 脚', '鲸鱼顶（脚版 2 级起三段）'], ['↓↙← + 脚', '鲸尾回旋（爆廻，连按脚加圈；命中 / 被防可直接取消接超必杀，↓↘→↓↘→ + 脚 或 ↓ + H = 三级）'], ['↓↙← + 拳', '求求了（当身）'], ['空中 ↓↘→ + 脚', '鲸鳍下踢（饭量 1 级，中段，踢中弹回）'], ['空中 ↓↙← + 脚', '饭盆砸（饭量 2 级）'], ['半圈 →↘↓↙← + 拳（近身）', '盖章驳回（饭量 3 级，指令投）'], ['↓↓ + 拳 / 脚', '吃白饭 / 戴头盔（戴着时 → + U 头盔冲撞）'], ['半圈 ←↙↓↘→ + 拳（O 一键）', '钢盆狙击（饭粒弹；每枪盆盖眼 = 破绽，EX 三连射）'], ['饭量 4 级', '普通技伤害 +10%，端着碗站'], ['被终结时（决胜局 / 超必杀 K.O.）', '处决「按头连打」（Enter 跳过）']],
-    surf: [['必杀技（客串 · 网上冲浪选手）', ''], ['↓↘→ + 拳', '热搜水炮（重版更快，EX 两发上下）'], ['→↓↘ + 拳 / 脚', '浪尖翻板（对空）'], ['↓↙← + 拳 / 脚', '冲浪滑行（多段突进，最后一下打飞）'], ['超必杀', ''], ['↓↘→↓↘→ + 拳', '一级 冲上热搜（巨浪）'], ['↓↙←↓↙← + 拳', '二级 全力输出（必杀全变 EX）'], ['↓↘→↓↘→ + 脚', '三级 全网爆款（打中进处决演出）']],
-    nin: [['必杀技（客串 · 404 号忍者）', ''], ['↓↘→ + 拳', '验证码手里剑（重版两枚，EX 三枚扇形）'], ['→↓↘ + 拳 / 脚', '加载转圈斩（对空）'], ['↓↙← + 拳', '旋身踢（多段突进）'], ['↓↙← + 脚', '404 隐身（无敌消失，重版 / EX 闪到对手身后踢）'], ['超必杀', ''], ['↓↘→↓↘→ + 拳', '一级 瞬移斩 · 404'], ['↓↙←↓↙← + 拳', '二级 全力输出'], ['↓↘→↓↘→ + 脚', '三级 强制下线（打中进处决演出）']],
+    ds: [['必杀技（饭量 0–4 级：↓↓ + 拳 吃一口升一级）', ''], ['↓↘→ + 拳（再按拳）', '加班连打（0 级两段 / 1 级三段 / 3 级加踢）'], ['↓↘→ + 脚', '滑铲（下段）'], ['→↓↘ + 拳 / 脚', '鲸鱼顶（脚版 2 级起三段）'], ['↓↙← + 脚', '鲸尾回旋（连按脚加圈；命中 / 被防可取消接三级）'], ['↓↙← + 拳', '求求了（当身）'], ['空中 ↓↘→ + 脚', '鲸鳍下踢（饭量 1 级，中段，踢中弹回）'], ['空中 ↓↙← + 脚', '饭盆砸（饭量 2 级）'], ['半圈 →↘↓↙← + 拳（近身）', '盖章驳回（饭量 3 级，指令投）'], ['↓↓ + 拳 / 脚', '吃白饭 / 戴头盔（戴着时 → + U 头盔冲撞）'], ['半圈 ←↙↓↘→ + 拳（O 一键）', '钢盆狙击（每枪盆盖眼 = 破绽，EX 三连）'], ['饭量 4 级', '普通技伤害 +10%，端着碗站'], ['被终结时（决胜局）', '处决「按头连打」（Enter 跳过）']],
+    surf: [['必杀技（客串 · 网上冲浪选手）', ''], ['↓↘→ + 拳', '热搜水炮（重版更快，EX 两发上下）'], ['→↓↘ + 拳 / 脚', '浪尖翻板（对空）'], ['↓↙← + 拳 / 脚', '冲浪滑行（多段突进，最后一下打飞）'], ['空中 ↓↘→ + 拳', '空中水炮（斜下，反冲后飘）'], ['超必杀', ''], ['↓↘→↓↘→ + 拳', '一级 冲上热搜（巨浪）'], ['↓↙←↓↙← + 拳', '二级 全力输出（必杀全变 EX）'], ['↓↘→↓↘→ + 脚', '三级 全网爆款（打中进处决演出）']],
+    nin: [['必杀技（客串 · 404 号忍者）', ''], ['↓↘→ + 拳', '验证码手里剑（重版两枚，EX 三枚扇形）'], ['→↓↘ + 拳 / 脚', '加载转圈斩（对空）'], ['↓↙← + 拳', '旋身踢（多段突进）'], ['↓↙← + 脚', '404 隐身（无敌消失，重版 / EX 闪到对手身后踢）'], ['空中 ↓↘→ + 拳', '空中手里剑（重版两枚）'], ['超必杀', ''], ['↓↘→↓↘→ + 拳', '一级 瞬移斩 · 404'], ['↓↙←↓↙← + 拳', '二级 全力输出'], ['↓↘→↓↘→ + 脚', '三级 强制下线（打中进处决演出）']],
     gem: [['必杀技', ''], ['↓↘→ + 拳', '毛线球（贴地，O 一键）'], ['→↓↘ + 拳', '炸毛升天（对空）'], ['↓↙← + 拳（再按拳 ×2）', '三段爪：第三段拍倒'], ['半圈 →↘↓↙← + 拳（近身）', '翻面：不扣血，对手背过去定住'], ['半圈 ←↙↓↘→ + 拳', '猫猫拳（连打）'], ['→↓↘ + 脚', '后跃斜爪'], ['↓↘→ + 脚', '踩奶'], ['↓↙← + 脚', '追尾巴（旋风腿）'], ['↓↓ + 拳 / 脚', '香蕉皮 / 偷饭'], ['半圈 →↘↓↙← + 脚', '哈基米曼波（挑衅，回 TOKEN 和算力）'], ['半圈 ←↙↓↘→ + 脚', '叼走（跑过去拎起来炸，防不住）'], ['空中 ↓↙← + 拳', '空中斜爪（中段）'], ['→ + J / 空中 ← + K / 贴墙 ↑', '两段爪 / 逆向踢 / 三角跳']] };
   const left = MLIST[ch.id] ? MLIST[ch.id].slice() : [['必杀技（拳 = J / U，脚 = K / I；轻重键改速度和伤害）', '']];
   if (!MLIST[ch.id]) {
@@ -793,14 +829,15 @@ function drawMoveList(ch) {
   left.push(['必杀指令 + 两拳 / 两脚', 'EX 版（耗 2 格算力）'], ['', ''], ['超必杀（TOKEN 分 3 格；懒人键见最上面）', ''], ['↓↘→↓↘→ + 拳', '一级 · ' + ((SUN[ch.id] && SUN[ch.id][1]) || ch.su.name) + '（1 格）'], ['↓↙←↓↙← + 拳', '二级 · ' + ((SUN[ch.id] && SUN[ch.id][2]) || ({ gem: '九条命' })[ch.id] || '全力输出') + '（2 格）'], ['↓↘→↓↘→ + 脚', '三级 · ' + ((typeof CINE_TXT !== 'undefined' && CINE_TXT[ch.id]) ? CINE_TXT[ch.id].name + '（3 格，≤25% 血终结）' : '强化版一级（3 格）')]);
   const right = [['普通技（站 / 蹲 / 跳 × 4 键）', ''], ['J / K（可连打）', '轻拳 / 轻脚，J 连按自动三连'], ['U / I（近身自动变近身版）', '重拳 / 重脚'], ['↓ + J / K', '蹲轻拳 / 蹲轻脚（下段）'], ['↓ + U / ↓ + I', '对空上勾 / 扫腿（下段，击倒）'], ['→ + J / → + U', '中段（破蹲防）/ 前冲重拳'], ['→ + I / ← + I', '前踢 / 后转踢'], ['J + K（← 同按 = 往后投）', '投；被抓瞬间按 J+K 拆投'], ['轻点 W / ↓ 后马上 W', '小跳 / 大跳'], , ['', ''],
     ['算力槽（绿色 6 格）', ''], ['按住 L', '架招；挨打前一瞬间按 = 精防'], ['架招中 →→ / 普通技后 →→', '绿冲（1 格）/ 绿冲取消（3 格）'], ['U + I', '算力冲击（1 格，两下霸体）'], ['防御中 U + I', '算力反击（2 格）'], ['倒地时按任意键', '快速起身'], ['A / D、空格、双击 → / ←', '移动 / 翻滚 / 冲刺 · 后撤']];
-  const col = (rows, x0, xw, top, sp = 41) => rows.forEach(([a, b], i) => { const y = top + i * sp; if (!b && a) { txt(a, x0, y, { size: 28, w: 900, fill: '#FFE066' }); return; } txt(a, x0 + 20, y, { size: 24, w: 800, fill: '#fff' }); txt(b, x0 + xw, y, { size: 24, w: 700, fill: 'rgba(230,240,255,0.92)' }); });
+  const fitSz = (s, w, mw, sz = 24, mn = 16) => { g.save(); g.font = font(sz, w, F.cn); const k = g.measureText(s).width; g.restore(); return k <= mw ? sz : Math.max(mn, Math.floor(sz * mw / k)); };      // 第 69 圈：出招表文字超宽时缩字号，不再压到另一栏
+  const col = (rows, x0, xw, top, sp = 41, xe = 1800) => rows.forEach(([a, b], i) => { const y = top + i * sp; if (!b && a) { txt(a, x0, y, { size: fitSz(a, 900, xe - x0 - 10, 28), w: 900, fill: '#FFE066' }); return; } txt(a, x0 + 20, y, { size: fitSz(a, 800, xw - 32), w: 800, fill: '#fff' }); txt(b, x0 + xw, y, { size: fitSz(b, 700, xe - x0 - xw - 16), w: 700, fill: 'rgba(230,240,255,0.92)' }); });
   const lz = typeof lazyMoves === 'function' ? lazyMoves({ id: ch.id, ch, rice: 0 }) : {}, nm = d => lz[d] ? mvName(ch, lz[d]).replace(/（.*$/, '') : '—';      // 懒人键一块：O / H 加方向
   g.save(); rr(120, 150, 1680, 84, 14); g.fillStyle = 'rgba(255,224,102,0.12)'; g.fill(); g.lineWidth = 2; g.strokeStyle = 'rgba(255,224,102,0.7)'; g.stroke(); g.restore();
   txt('懒人键', 140, 202, { size: 30, w: 900, fill: '#FFE066' });
   txt('O ' + nm('n') + '　→+O ' + nm('f') + '　←+O ' + nm('b') + '　↓+O ' + nm('d') + '（和搓招一样，有冷却）', 270, 186, { size: 24, w: 800, fill: '#fff' });
   txt('H 或 ; 一级　→+H 二级　↓+H 三级（伤害 ×0.9，格数不够不出）', 270, 222, { size: 24, w: 800, fill: '#fff' });
   const rows = Math.max(left.length, right.length), sp = Math.min(41, (1068 - 262) / rows);
-  col(left, 120, 330, 262, sp); col(right, 980, 380, 262, sp);
+  col(left, 120, 330, 262, sp, 970); col(right, 980, 380, 262, sp, 1800);
 }
 
 // 接触阴影：贴脚的扁椭圆（中心深、边缘虚）+ 脚下一圈很窄的环境遮蔽；离地越高越小越淡
@@ -1045,7 +1082,7 @@ function cineStrikeFx(id, ch, atk, vic, q, dir, t) {
   else if (id === 'glm' && q < 0.8) { g.save(); g.translate(vic.x, vic.y - 320); g.rotate(-0.12); g.globalAlpha = Math.min(1, q * 6) * (1 - q * 0.8); g.strokeStyle = '#D0202E'; g.lineWidth = 22; g.beginPath(); g.arc(0, 0, 230, 0, 7); g.stroke(); txt('0分', 0, 70, { size: 200, w: 900, fill: '#D0202E', align: 'center' }); g.restore(); }      // 盖一个大大的「0 分」
   else if (id === 'grok') { g.save(); g.strokeStyle = '#120806'; g.lineWidth = 10; g.globalAlpha = Math.min(1, q * 5); for (let i = 0; i < 7; i++) { const an = (i / 7) * Math.PI - Math.PI, L = 260 + hash(i) * 360; g.beginPath(); g.moveTo(atk.x + dir * 200, atk.y); g.lineTo(atk.x + dir * 200 + Math.cos(an) * L, atk.y + Math.abs(Math.sin(an)) * 40 + 10); g.stroke(); } g.restore(); }      // 地裂
   else if (id === 'qwen') { for (let i = 0; i < 6; i++) { const yy = -400 + Math.min(1, q * 3 + i * 0.05) * (vic.y - 60 + 400) - i * 30; g.save(); g.translate(vic.x + (i - 2.5) * 110, yy); g.rotate((i - 2.5) * 0.2); g.fillStyle = '#C9925A'; g.fillRect(-60, -50, 120, 100); g.fillStyle = '#8A5A2A'; g.fillRect(-60, -8, 120, 14); g.restore(); } }      // 快递箱砸下来
-  else if (id === 'claude') { for (let i = 0; i < 30; i++) { const R = hash(i * 5.3), x = atk.x + dir * (100 + q * (600 + R * 900)), y = atk.y - atk.h * 0.6 + (R - 0.5) * 700 * q + Math.sin(t * 0.3 + i) * 30; g.save(); g.globalAlpha = 1 - q * 0.6; g.translate(x, y); g.rotate(t * 0.2 + i); g.fillStyle = '#FFFDF4'; g.fillRect(-30, -40, 60, 80); g.restore(); } }      // 书页风暴
+  else if (id === 'claude') { for (let i = 0; i < 30; i++) { const R = hash(i * 5.3), x = atk.x + dir * (100 + q * (600 + R * 900)), y = atk.y - atk.h * 0.6 + (R - 0.5) * 700 * q + Math.sin(t * 0.3 + i) * 30; g.save(); g.globalAlpha = 1 - q * 0.6; g.translate(x, y); g.rotate(t * 0.2 + i); g.fillStyle = '#FFFDF4'; g.fillRect(-30, -40, 60, 80); g.strokeStyle = 'rgba(90,60,30,0.55)'; g.lineWidth = 2.5; g.strokeRect(-30, -40, 60, 80); g.fillStyle = 'rgba(90,60,30,0.35)'; for (let j = 0; j < 4; j++) g.fillRect(-22, -28 + j * 16, 44 - (j % 2) * 14, 4); g.restore(); } }      // 书页风暴
   else if (id === 'dou' && q < 0.3) { g.save(); g.globalAlpha = 1 - q / 0.3; g.fillStyle = '#FFFFFF'; g.fillRect(atk.x - 4000, -4000, 8000, 8000); g.restore(); }      // 闪光灯
   else if (id === 'gem' && q < 0.75) { const k = q / 0.75; g.save(); g.translate(vic.x - dir * 80, vic.y - 280); g.globalAlpha = 1 - k; for (const r of [0.78, -0.78]) { g.save(); g.rotate(r); for (let j = -1; j <= 1; j++) { g.fillStyle = j ? ch.col2 : '#fff'; g.fillRect(-1400, j * 60 - 14 * (1 - k), 2800, 28 * (1 - k) + 6); } g.restore(); } g.restore(); }      // 双爪交叉撕开画面
 }
@@ -1337,7 +1374,7 @@ function spFx(s, f, p, x, yb, h, flip, front) {
   const kick = KICKISH.test(id), px = x + fc * h * (kick ? 0.3 : 0.26), py = yb - h * (kick ? 0.28 : 0.56);      // 攻击部位（拳 / 脚 / 尾 / 爪……）大概的位置
   if (!front) {
     if (t < 14 && f.y <= 1) { const q = t / 14; g.save(); g.strokeStyle = rgba(col, 0.7 * (1 - q)); g.lineWidth = 6 * (1 - q) + 1; g.beginPath(); g.ellipse(f.x, yb + 4, h * (0.25 + 0.75 * E.out3(q)), h * (0.05 + 0.12 * E.out3(q)), 0, 0, 7); g.stroke(); if (ex) { g.strokeStyle = rgba('#FFF2B0', 0.6 * (1 - q)); g.beginPath(); g.ellipse(f.x, yb + 4, h * (0.4 + 1.1 * E.out3(q)), h * (0.08 + 0.18 * E.out3(q)), 0, 0, 7); g.stroke(); } g.restore(); }      // 脚下扩散的波纹（EX 两圈）
-    if (RISEMV.test(id) && f.y > 10) { const a = Math.min(1, f.vy > 0 ? 1 : 0.4); g.save(); g.globalCompositeOperation = 'lighter'; const gw = h * 0.36; g.fillStyle = lg(0, yb + f.y, 0, yb - h, [rgba(col, 0.0), rgba(col, 0.35 * a), rgba('#FFFFFF', 0.25 * a), rgba(col, 0)]); g.fillRect(f.x - gw, yb - h * 0.8, gw * 2, f.y + h * 0.8); g.restore(); }      // 升龙：上升气流柱
+    if (RISEMV.test(id) && f.y > 10) { const a = Math.min(1, f.vy > 0 ? 1 : 0.4); g.save(); g.globalCompositeOperation = 'lighter'; const gw = h * 0.36, y0 = yb + f.y, y1 = yb - h * 0.8, cy = y1 + (y0 - y1) * 0.42, ry = (y0 - y1) * 0.62; g.translate(f.x, cy); g.scale(gw / ry, 1); g.fillStyle = rg(0, 0, 0, ry, [rgba('#FFFFFF', 0.22 * a), [0.35, rgba(col, 0.3 * a)], [0.7, rgba(col, 0.12 * a)], [1, rgba(col, 0)]]); g.beginPath(); g.arc(0, 0, ry, 0, 7); g.fill(); g.restore(); }      // 升龙：上升气流柱（第 70 圈：原来是竖向渐变的矩形，左右是硬边 → 改成椭圆径向渐隐）
     if (SPINMV.test(id) && f.y < 200 && f.id !== 'gem' && f.id !== 'grok') ring(false);
     if (f.y <= 1 && Math.abs(f.vx) > 420) { for (let i = 3; i >= 1; i--) spr(p.name, x - f.vx / 60 * i * 3.4, yb + p.dy, h, { flip, rot: p.rot, sx: p.sx, sy: p.sy, a: 0.24 / i, env: { col, a: 0.85, bot: 0 } }); }      // 突进：身后残影
     if (f.id === 'ds') dsSpFx(s, f, x, yb, h, col, ex, 0);
@@ -1704,6 +1741,7 @@ const POSE4 = {
   wcannon: (f, t, F) => ({ n: t < 6 ? F('fb1') : t < 12 ? F('fb2') : t < 22 ? F('fb3') : F('fb4') }), shuri: (f, t, F) => ({ n: t < 4 ? F('fb1') : t < 8 ? F('fb2') : t < 16 ? F('fb3') : F('fb4') }),
   vanish: (f, t, F) => ({ n: t < 6 ? (F('z1') || F('crouch')) : t < 26 ? (F('dash') || F('crouch')) : t < 32 ? (F('kick3') || F('kick')) : (F('kick4') || F('stance')) }),
   afan: (f, t, F) => ({ n: F('fb3') || F('air') }),
+  abook: (f, t, F) => ({ n: t < 7 ? (F('ma2') || F('jump')) : (F('ma3') || F('jab3') || F('jump')) }), awater: (f, t, F) => ({ n: t < 8 ? (F('fb2') || F('air')) : (F('fb3') || F('air')) }), ashuri: (f, t, F) => ({ n: t < 6 ? (F('fb2') || F('air')) : (F('fb3') || F('air')) }),      // 第 76 圈：GLM / 浪花 / 小忍 空中必杀
   elbow: (f, t, F) => ({ n: t < 6 ? (F('crouch1') || F('crouch')) : (F('rush2') || F('dash')), dy: 10 }),
   dive: (f, t, F) => ({ n: f.mv.land ? (F('smashland') || F('crouch')) : (F('fkick') || F('air')), rot: 0.3 }),
   grab360: (f, t, F) => { const M = f.mv; if (!M.got) return { n: F('throw1') || F('jab3') }; return { n: M.slam ? (F('smashland') || F('crouch')) : f.y > 0 ? (F('smash') || F('throw3')) : (F('throw2') || F('heavy1')) }; },
@@ -1779,5 +1817,7 @@ function seqAt(Q, A, t) {      // 返回 { i 当前帧号, prev 上一帧号, fr
     if (u < A.su + A.ac) return Q.a; const R = Math.max(1, A.rc * Q.re); let acc = A.su + A.ac; for (let k = 0; k < Q.r.length; k++) { acc += Q.rw[k] * R; if (u < acc - 1e-6) return Q.r[k]; } return Q.re < 1 ? 0 : Q.r[Q.r.length - 1]; };
   const i = at(t), p = t > 0 ? at(t - 1) : 0; return { i: i || Q.r[Q.r.length - 1], prev: p, fresh: i !== p && p > 0, done: !i };
 }
+const MSEQ = { slp: ['ml1', 'ml2', 'ml2'], slk: ['ml3', 'ml4', 'ml3'], shp: ['mh1', 'mh2', 'mh3'], shpc: ['mh1', 'mh4', 'mh4'], shk: ['mk1', 'mk2', 'mk3'], fhk: ['mk1', 'mk2', 'mk3'], bhk: ['mk1', 'mk2', 'mk3'], shkc: ['mk1', 'mk4', 'mk4'], chp: ['mc3', 'mc4', 'ms4'], kchp: ['mc3', 'mc4', 'ms4'], kshp: ['mh1', 'mh2', 'mh3'], kshk: ['mk1', 'mk2', 'mk3'], gstep: ['mk1', 'mk2', 'mk3'], gelb: ['mh1', 'mh4', 'mh4'] };      // 第 69 圈（H2）：加对空 chp / Kimi 长手 / GLM 踏步踢、回身肘
+const CSEQ = { clp: ['-', 'mc1', '-'], clk: ['-', 'mc2', '-'], chk: ['ms1', 'ms2', 'ms3'], sweep: ['ms1', 'ms2', 'ms3'] };      // 第 69 圈（H2）：蹲攻击 [起手, 命中, 收招]，'-' = 蹲姿      // 第 68 圈：专属普通技 [起手, 命中, 收招]
 const OWNK = { slk: 'nslk', shk: 'nshk', shkc: 'nshk', fhk: 'nshk', bhk: 'nshk', chp: 'nchp', shp: 'nshp', shpc: 'nshp' };      // 有专用普通技帧（E 图）就用专用的
 const NKEY = { daxe: 'kick', gsob: 'kick', ghammer: 'heavy', gstep: 'kick', gelb: 'heavy', flipk: 'kick', slp: 'jab', slk: 'kick', shp: 'heavy', shpc: 'heavy', shk: 'kick', shkc: 'kick', fhk: 'kick', bhk: 'kick', chp: 'upper', light: 'jab', light2: 'upper', light3: 'kick', heavy: 'heavy', mid: 'heavy', fwdk: 'heavy' };

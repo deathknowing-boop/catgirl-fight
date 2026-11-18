@@ -15,7 +15,7 @@ function startPlay() {
   cv.addEventListener('pointerdown', e => { auInit(); bgmPlay(); cv.focus(); const R = cv.getBoundingClientRect(), x = (e.clientX - R.left) * 1920 / R.width, y = (e.clientY - R.top) * 1080 / R.height; if ((sc === 'title' || sc === 'select' || (sc === 'fight' && G.pause)) && typeof optClick === 'function' && optClick(x, y)) { G.diff = optDiff().base; return; } press.push('Enter'); });      // 第 68 圈：点设置条切换
   // 第 65 圈（用户反馈：打完 3 场就结束了）：完整街机模式 = 8 场常规（第 5 场是宿敌战，赛前有对话）+ 第 9 场最终头目（吃饱了的本体，选大肥鱼时换成哈基米本体）→ 通关结局 / STAFF / 成绩
   const NST = () => G.opp.length, isBoss = () => G.stageNo === NST() && NST() > 3, isRival = () => G.rivalNo === G.stageNo;
-  const stageOf = () => isBoss() ? 'rooftop' : G.stageNo === NST() ? 'office' : HOME[G.opp[G.stageNo - 1]];
+  const stageOf = () => isBoss() ? 'rooftop' : (typeof OPT !== 'undefined' && OPT.stage && OPT.stage !== 'auto' && STAGES[OPT.stage]) ? OPT.stage : G.stageNo === NST() ? 'office' : HOME[G.opp[G.stageNo - 1]];      // 第 68 圈：V 键选舞台
   const padLv = () => Math.max(1, Math.min(8, G.diff - 1 + Math.floor((G.stageNo - 1) / 3) + (isBoss() ? 1 : 0)));
   // 第 30 圈：命中音效分层（轻 / 中 / 重 / COUNTER / PUNISH COUNTER / 撞墙 / 地面反弹）
   function hitLayers(s, e) {
@@ -57,7 +57,7 @@ function startPlay() {
         if (c !== S.cur2) { S.cur2 = c; S.t2 = t; sfx('cursor'); } S.p2 = ORDER[S.cur2]; if (window.QLAZY) QLAZY.load(S.p2); if (press.includes('KeyR')) { G.skin2 = G.skin2 === 'a' ? 'q' : 'a'; sfx('cursor'); } if (G.skin2 === 'a' && hasAdult(S.p2)) loadAdult(S.p2);
         if (ok() && t > S.lock1 + 0.3) { S.lock2 = t + 0.1; G.opp = [S.p2, S.p2, S.p2]; G.stageNo = 1; }
       } else if (S.lock2 == null) {         // 电脑的光标转一圈，停在第一关的对手上
-        const n = Math.min(12, Math.floor((t - S.lock1 - 0.45) / 0.09)); if (n > S.hop && n <= 12) { S.hop = n; const pool = ORDER.filter(x => x !== G.p1); S.p2 = n === 12 ? G.opp[0] : pool[(n * 5) % pool.length]; S.t2 = t; sfx('cursor'); if (n === 12) S.lock2 = t + 0.3; }
+        const n = Math.min(12, Math.floor((t - S.lock1 - 0.45) / 0.09)); if (n > S.hop) { S.hop = n; const pool = ORDER.filter(x => x !== G.p1); S.p2 = n === 12 ? G.opp[0] : pool[(n * 5) % pool.length]; S.t2 = t; sfx('cursor'); if (n === 12) S.lock2 = t + 0.3; }
       } else { once('snd2', t >= S.lock2, () => sfx('confirm')); if (sk2() === 'a') loadAdult(G.opp[0]); if (t > S.lock2 + 1.1 && adReady()) { if (G.mode === 'train') { newTrain(); return go('fight'); } return startMatch(); } }
       drawSelect(t, { skin1: hasAdult(ORDER[S.cur]) ? G.skin1 : 'q', skin2: S.p2 && hasAdult(S.p2) ? G.skin2 : 'q', p1: ORDER[S.cur], t1: S.t1, lock1: S.lock1, p2: S.p2, t2: S.t2, lock2: S.lock2, play: true, stageNo: S.lock1 != null ? 1 : 0 });
       if (typeof drawOptBar === 'function') drawOptBar(1060, 36, { size: 21 });      // 第 68 圈：配乐 / 难度 / 冷却设置条（原来右下角的「电脑难度 n」文字压在出招表上）
@@ -73,8 +73,10 @@ function startPlay() {
       if (G.pause) { for (const k in latch) delete latch[k]; drawFight(s, { hints: true }); drawMoveList(s.F[0].ch); if (typeof drawOptBar === 'function') drawOptBar(960, 1044, { size: 20 }); return; }
       for (const k in latch) { inp[k] = true; delete latch[k]; }
       if (G.mode === 'train') { for (const c of press) trKeys(G.TR, c, s); if (press.includes('Backspace')) { G.mode = 'arcade'; return go('title'); } s.acc += Math.min(4, dt * 60) * s.ts; while (s.acc >= 1 - 1e-9) { const ii = trInputs(G.TR, s, inp); trPre(G.TR, s); s.tick(ii); trPost(G.TR, s, inp); s.acc -= 1; } } else
-      { const R = G.rec; s.acc += Math.min(4, dt * 60) * s.ts; while (s.acc >= 1 - 1e-9) { if (R && R.ins.length < 30000) R.ins.push(Object.assign({}, inp)); s.tick([inp, null]); if (R && R.koI < 0 && (s.phase === 'ko' || s.exe)) R.koI = R.ins.length; s.acc -= 1; } }      // 和 s.advance 完全一样，只是顺手记录 for (; G.evN < s.ev.length; G.evN++) { const e = s.ev[G.evN], n = evSfx(e); if (e.type === 'hit' && e.blk) { sfx('guard'); continue; } if (n) sfx(n); hitLayers(s, e); voiceFor(s, e); }      // 第 30 圈：每一击三层（挥空风声已在出手时放 + 命中声 + 低频冲击），加角色语音      // 防御 = 清脆的「叮」；重击叠一层低频「咚」+ 擦地；COUNTER 有提示音
-      if (s.cine) { const ct = s.cine.t; if (G.cineT !== ct) { for (let q = (G.cineT ?? -1) + 1; q <= ct; q++) { const n = cineSfx(q); if (n) n.forEach(([k, v]) => sfx(k, v)); } G.cineT = ct; } } else G.cineT = null;      // 三级演出的音效按演出时间表打点
+      { const R = G.rec; s.acc += Math.min(4, dt * 60) * s.ts; while (s.acc >= 1 - 1e-9) { if (R && R.ins.length < 30000) R.ins.push(Object.assign({}, inp)); s.tick([inp, null]); if (R && R.koI < 0 && (s.phase === 'ko' || s.exe)) R.koI = R.ins.length; s.acc -= 1; } }      // 和 s.advance 完全一样，只是顺手记录
+      for (; G.evN < s.ev.length; G.evN++) { const e = s.ev[G.evN], n = evSfx(e); if (typeof auEv === 'function') auEv(s, e); if (e.type === 'hit' && e.blk) { sfx('guard'); continue; } if (n) sfx(n); hitLayers(s, e); voiceFor(s, e); }      // 第 30 圈：每一击三层（挥空风声已在出手时放 + 命中声 + 低频冲击），加角色语音      // 防御 = 清脆的「叮」；重击叠一层低频「咚」+ 擦地；COUNTER 有提示音
+      if (typeof auWatch === 'function') auWatch(s);      // 第 69 圈：事件表里没有的声音（绿冲 / 算力冲击 / 投技 / 梗招 / 三级演出台词 / 开场语音）按状态变化补，只读不改
+      if (s.cine) { const ct = s.cine.t; if (G.cineT !== ct) { for (let q = (G.cineT ?? -1) + 1; q <= ct; q++) { const n = s.cine.live && typeof LIVE3 !== 'undefined' ? LIVE3.sfx(q) : cineSfx(q); if (n) n.forEach(([k, v]) => sfx(k, v)); } G.cineT = ct; } } else G.cineT = null;      // 三级演出的音效按演出时间表打点
       drawFight(s, { hints: G.mode !== 'train' }); if (G.mode === 'train') { drawTrain(G.TR, s); return; }
       if (!G.keyHint && s.phase === 'fight') G.keyHint = now(); const kh = G.keyHint ? now() - G.keyHint : 99; if (kh < 5) keyCard(Math.min(1, (5 - kh) / 0.5));      // 第一场开打时，按键提示停 5 秒
       if (s.done) { G.wins = s.wins.slice(); if (G.wins[0] >= 2 || G.wins[1] >= 2) return G.rec && G.rec.koI > 30 && QS.get('replay') !== '0' ? go('replay', { win: G.wins[0] >= 2, rec: G.rec }) : go('over', { win: G.wins[0] >= 2 }); G.round++; newRound(); }
@@ -96,7 +98,13 @@ function startPlay() {
       else { drawClear(t, { p1: G.p1, skin: sk1(), score: G.score, time: G.clearT, cont: G.cont, diff: G.diff }); once('w1', t >= 0.2, () => vox(G.p1 + '_win', 1, 'p0')); if (t > 1 && ok()) { if (t < CLEAR_LEN - 1) t0 -= Math.max(0, Math.ceil((t + 0.01) / 7) * 7 - t); else return go('title'); } }
     }
   }
-  function frame() { const tn = now(), dt = Math.min(0.1, tn - last); last = tn; step(tn - t0, dt); wipe(1 + (tn - wipeT) / 0.3); if (!AU.on) txt('已静音（M）', 1890, 1068, { size: 20, w: 700, fill: 'rgba(255,255,255,0.7)', align: 'right' }); if (typeof POST !== 'undefined') POST.frame(sc === 'fight' || sc === 'over' ? G.sim : sc === 'replay' && !(S.fz > 0 && S.fz < 66) ? G.rsim : null); press = []; requestAnimationFrame(frame); }      // 第 32 圈：WebGL 后处理（没有 WebGL 就是纯 2D）
+  const PW = { ema: 1 / 60, low: 0, lv: 0, msgT: 0, msg: '' }, PW_OFF = /[?&]auto=0/.test(location.search);      // 第 76 圈：低端机自动降画质（对战中连续约 4 秒低于 44 帧：先关 WebGL 后处理，再关背景视差 / 近景层）；?auto=0 关
+  function perfWatch(dt) {
+    if (PW_OFF || sc !== 'fight' || dt <= 0 || dt >= 0.1) { if (sc !== 'fight') PW.low = 0; } else { PW.ema += (dt - PW.ema) * 0.05; PW.low = PW.ema > 1 / 44 ? PW.low + dt : Math.max(0, PW.low - dt * 0.5);
+      if (PW.low > 4 && PW.lv < 2) { PW.low = 0; PW.ema = 1 / 60; PW.lv++; if (PW.lv === 1 && typeof POST !== 'undefined' && POST.on) { POST.toggle(); PW.msg = '帧率偏低：已自动关闭后处理'; } else { PW.lv = 2; if (typeof PAR_OFF !== 'undefined') PAR_OFF = true; PW.msg = '帧率偏低：已自动简化背景'; } PW.msgT = 3; } }
+    if (PW.msgT > 0) { PW.msgT -= dt; txt(PW.msg, 1890, 1040, { size: 22, w: 700, fill: '#FFE066', align: 'right', a: Math.min(1, PW.msgT), sh: ['rgba(0,0,30,0.9)', 6, 0, 1] }); }
+  }
+  function frame() { const tn = now(), dt = Math.min(0.1, tn - last); last = tn; step(tn - t0, dt); wipe(1 + (tn - wipeT) / 0.3); if (!AU.on) txt('已静音（M）', 1890, 1068, { size: 20, w: 700, fill: 'rgba(255,255,255,0.7)', align: 'right' }); perfWatch(dt); if (typeof POST !== 'undefined') POST.frame(sc === 'fight' || sc === 'over' ? G.sim : sc === 'replay' && !(S.fz > 0 && S.fz < 66) ? G.rsim : null); press = []; requestAnimationFrame(frame); }      // 第 32 圈：WebGL 后处理（没有 WebGL 就是纯 2D）
   function cineSfx(q) {
     if (q === 1) return [['hit3', 1]]; if (q === 12) return [['whoosh2', 1]]; if (q === CB.A + 6) return [['su', 0.8]];
     for (let i = 0; i < CHITS; i++) if (q === cineHitT(i)) return [[i % 3 === 2 ? 'hit3' : 'hit2', 1], ['thud', 0.4]];

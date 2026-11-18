@@ -182,6 +182,10 @@ function drawSelect(t, o) {
     g.restore(); }
   const rows = Math.ceil(ORDER.length / L.n), py = L.y0 + rows * (C + L.gap) + 26; selPreview(t, o.p1, o.skin1, L.x0 - 8, py, 2 * (960 - L.x0 + 8), Math.min(1036 - py, 380), o.t1);
   if (o.play && o.lock1 == null) { g.save(); rr(400, 1036, 1120, 40, 14); g.fillStyle = 'rgba(6,10,40,0.78)'; g.fill(); g.restore(); } if (o.play && o.lock1 == null) txt('方向键选择 · J / Enter 确定 · Tab 成年版 · R 电脑也用成年版 · 战斗中 P 看出招表', 960, 1062, { size: 24, w: 800, fill: '#fff', stroke: 'rgba(8,14,48,0.85)', sw: 7, align: 'center' });
+  if (o.lock1 != null && typeof P5 !== 'undefined' && !P5.OFF && t >= o.lock1 && t - o.lock1 < 0.95) { const u = t - o.lock1, kin = E.out5(Math.min(1, u / 0.14)), ko = Math.max(0, (u - 0.72) / 0.23), sl = kin * (1 - ko * ko), dx = (1 - kin) * -2200 + ko * ko * 2200;      // 第 75 圈：确认选人时 P5 式黑红斜带 + 剪报字「<名字>·参战！」
+    g.save(); g.translate(dx, 0); g.beginPath(); g.moveTo(-200, 420); g.lineTo(W + 200, 330); g.lineTo(W + 200, 560); g.lineTo(-200, 650); g.closePath(); g.fillStyle = 'rgba(8,6,14,0.92)'; g.fill(); g.clip(); P5.halftone(400, 500, '#E8102E', 0.35, 22, 300, 680); g.restore();
+    g.save(); g.translate(dx, 0); g.lineWidth = 10; g.strokeStyle = '#E8102E'; g.beginPath(); g.moveTo(-200, 408); g.lineTo(W + 200, 318); g.moveTo(-200, 662); g.lineTo(W + 200, 572); g.stroke(); g.lineWidth = 5; g.strokeStyle = '#FFFFFF'; g.beginPath(); g.moveTo(-200, 424); g.lineTo(W + 200, 334); g.moveTo(-200, 646); g.lineTo(W + 200, 556); g.stroke(); g.restore();
+    const nm = CH[o.p1].name + '·参战！'; g.save(); g.translate(dx * 0.6, 0); g.rotate(-0.06); P5.tagWord(nm, 260, 530, [...nm].length > 7 ? 84 : 100, u - 0.08, rngOf(41), sl); g.restore(); }
   lyricLine(o.lyric, o.lyricA ?? 1);
 }
 // —— 标题：角色轮播（左右交替滑入、镜头推拉）+ 标题扫光 ——
@@ -214,5 +218,6 @@ function drawTitle(t, o = {}) {
   } else { const on = Math.sin(t * 9) > -0.3; if (window.ASSET_FAIL && ASSET_FAIL.length) txt('有 ' + ASSET_FAIL.length + ' 个图片包没加载上，请刷新页面重试', 960, 880, { size: 30, w: 800, fill: '#ffd34d', stroke: INK, sw: 8, align: 'center' }); txt('INSERT TOKEN', 960, 892, { size: 72, w: 900, fam: F.en, fill: on ? '#fff' : 'rgba(255,255,255,0.25)', stroke: INK, sw: 14, align: 'center', ls: 10 }); txt(o.play ? '按 Enter 投币开始' : '投币开始', 960, 946, { size: 32, w: 800, fill: '#BFD4FF', stroke: INK, sw: 6, align: 'center', ls: 6 }); }
   if (o.play) txt('J 轻拳 · K 轻脚 · U 重拳 · I 重脚 · J+K 投 · U+I 算力冲击 · L 架招 / 精防 · Y 挑衅 · Tab 出招表', 960, 990, { size: 24, w: 700, fill: 'rgba(235,242,255,0.95)', stroke: INK, sw: 5, align: 'center' });
   if (o.play) txt('懒人模式：O、H 加方向就能放必杀和超必杀 · 选人时按 Tab 换成年版', 960, 1028, { size: 26, w: 800, fill: '#FFE066', stroke: INK, sw: 5, align: 'center' });
+  if (window.LITE) { txt('精简版 · 完整版（带全部音效 / 动态场地）：', 1900, 1036, { size: 18, w: 700, fill: 'rgba(230,240,255,0.75)', align: 'right' }); txt('deathknowing-boop.github.io/catgirl-fight', 1900, 1062, { size: 20, w: 800, fam: F.en, fill: '#9FF3FF', align: 'right' }); }      // 第 68 圈：claude.ai 网页版是精简版，提示完整版地址
   txt(NOTE, 960, 40, { size: 20, w: 600, fill: 'rgba(230,240,255,0.6)', align: 'center' });
 }

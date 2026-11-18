@@ -99,9 +99,11 @@
     meeting: { name: '会议室 · 早会桌上', floor: 868, env: { col: '#8A5530', a: 0.08, bot: 0.26, top: 'rgba(255,210,150,0.10)' }, sh: '30,14,6', dust: '#E8C9A8', rim: '#FFD29A' },
     nextdoor: { name: '隔壁书房', floor: 915, env: { col: '#B8682A', a: 0.10, bot: 0.26, top: 'rgba(255,200,130,0.12)' }, sh: '36,14,4', dust: '#F0D2A8', rim: '#FFC07A' },
     rooftop: { name: '总部天台 · 最后的饭桶', floor: 905, env: { col: '#5A3C9E', a: 0.1, bot: 0.26, top: 'rgba(170,120,255,0.12)' }, sh: '10,0,30', dust: '#C8B8F0', rim: '#B89CFF' },      // 第 65 圈：最终头目战场地（GPT 出图）
+    fishplanet: { name: '大肥鱼星球', floor: 930, env: { col: '#3A3C9E', a: 0.1, bot: 0.22, top: 'rgba(140,170,255,0.14)' }, sh: '10,10,40', dust: '#D8E4FF', rim: '#9FC8FF' },      // 第 68 圈：动态舞台（js/stage2.js）
+    waterside: { name: '大肥鱼池塘 · 雨夜鸟居', floor: 930, env: { col: '#2A3C8E', a: 0.12, bot: 0.24, top: 'rgba(140,180,255,0.14)' }, sh: '4,6,24', shA: 1.3, dust: '#B0C4F0', rim: '#9FC4FF' },      // 第 77 圈：雨夜湖畔（stage2.js 的 WS / WSP；有底图用底图，没有就程序画）
     interview: { name: '面试间 · 饭就在桌上', floor: 884, env: { col: '#4E86A8', a: 0.07, bot: 0.22, top: 'rgba(200,240,255,0.10)' }, sh: '20,24,30', dust: '#E8E2D8', rim: '#CFF0FF' },   // env：人物的环境光；sh：接触阴影的颜色；dust：尘土颜色
   };
-  const HOME = { surf: 'meeting', nin: 'office', ds: 'office', gem: 'office', gpt: 'meeting', grok: 'meeting', claude: 'meeting', kimi: 'nextdoor', qwen: 'nextdoor', dou: 'interview', glm: 'interview' };   // 各自的主场
+  const HOME = { surf: 'waterside', nin: 'waterside', ds: 'fishplanet', gem: 'office', gpt: 'meeting', grok: 'meeting', claude: 'meeting', kimi: 'nextdoor', qwen: 'nextdoor', dou: 'interview', glm: 'interview' };   // 各自的主场
   // 对战事件 → 音效名（可玩版实时播放、演示视频离线混音，用的是同一张表）
   const EV_SFX = { clash: 'hit2', ex: 'confirm', fight: 'fight', jump: 'jump', land: 'land', dash: 'dash', su: 'su', freeze: 'freeze', flash: 'flash', axe: 'axe', paper: 'paper', turret: 'turret', wave: 'wave', beam: 'beam', warp: 'warp', mark: 'mark', sleep: 'sleep', charge: 'charge', laser: 'laser', heal: 'heal', style: 'style', splash: 'splash', smash: 'smash', boxland: 'boxland', counter: 'counter', cheer: 'cheer', fall: 'fall', ko: 'ko', timeup: 'timeup', win: 'win' };
   function evSfx(e) {
