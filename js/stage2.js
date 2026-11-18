@@ -244,7 +244,7 @@ STAGE2F.waterside = function (s, FL) {      // 人之后：雨丝（两层，近
 // ===== 第 77 圈：背景梗小剧场 THEATER（用户 16:47 / 16:48：背景里大量会动的大肥鱼梗）=====
 // 图：assets/th/<名>_<格>.webp（GPT 出的绿幕整张 → gtools/th_cut.py 抠底切格）。只进完整版：打包版没有 th 懒加载包时整段不画；?theater=0 关。
 // 画法：每格先压暗降饱和缓存一次（不抢前景），程序做循环动画（换格、上下浮、挤压、水花 / 烟 / 爱心 / 星星粒子、字幕牌），随战况反应（重击时「！」跳一下，K.O. 全体欢呼）。
-const TH = { lz: 0, dk: {} }, TH_N = { th_pond_fish: 4, th_incense: 2, th_slack: 1, th_claude_pet: 2, th_gpt_kid: 2, th_claude_beat: 2, th_ds_gun: 2, th_ds_dance: 3 };      // 有图的才列（缺图会报 IMG FAIL）
+const TH = { lz: 0, dk: {} }, TH_N = { th_pond_fish: 4, th_incense: 2, th_slack: 1, th_claude_pet: 2, th_gpt_kid: 2, th_claude_beat: 2, th_ds_gun: 2, th_ds_dance: 3, th_grok_tea: 2, th_gem_play: 3, th_glm_flip: 2, th_kimi_scroll: 2 };      // 有图的才列（缺图会报 IMG FAIL）
 const TH_OFF = typeof location !== 'undefined' && /[?&]theater=0/.test(location.search);
 function thLoad() { if (TH.lz || TH_OFF || typeof document === 'undefined') return; TH.lz = 1; if (window.LAZY_PACKS && !LAZY_PACKS.th) return;
   const L = []; for (const n in TH_N) for (let i = 0; i < TH_N[n]; i++) L.push(['t:' + n + '_' + i, 'assets/th/' + n + '_' + i + '.webp']); if (typeof LAZY !== 'undefined') { LAZY.th = () => L; loadLazy('th'); } }
@@ -291,16 +291,28 @@ const THV = {      // 一组小剧场 = (s, x, y, h, R) → 自己画；x / y = 
   dance(s, x, y, h, R) { const t = s.f, sp = R.ko || R.hype > 0.5 ? 2 : 1, cell = Math.floor(t * sp / 16) % 3, hop = Math.abs(Math.sin(t * sp * 0.2)) * h * 0.06; if (!thSpr('th_ds_dance_' + cell, x, y - hop, h, { dim: 0.72, sx: 1 + Math.sin(t * 0.2) * 0.03 })) return;
     g.save(); g.fillStyle = 'rgba(255,240,200,0.8)'; for (let i = 0; i < 3; i++) { const q = ((t * 0.015 + i / 3) % 1); txt('♪', x + (i - 1) * h * 0.4, y - h * (0.9 + q * 0.4), { size: Math.round(h * 0.13), w: 900, fill: '#FFE9A8', align: 'center', a: Math.sin(q * Math.PI) * 0.85 }); } g.restore(); },
 };
+Object.assign(THV, {      // 第 78 圈：第二版彩蛋（Grok 病娇大小姐 / 哈基米贪玩 / GLM 黑白颠倒 / Kimi 长文本埋人）
+  tea(s, x, y, h, R) { const t = s.f, yan = R.big || Math.floor(t / 150) % 3 === 2, cell = yan ? 1 : 0; if (!thSpr('th_grok_tea_' + cell, x, y, h, { dim: 0.7 })) return;
+    if (yan) { const k = 0.6 + 0.4 * Math.sin(t * 0.2); thHeart(x + h * 0.38, y - h * 0.95, h * 0.07 * k, 0.75); thBubble('……是谁弄脏了我的裙子？', x, y - h * 1.08, Math.round(h * 0.09), 0.85); } else if (Math.floor(t / 150) % 3 === 1) thBubble('呵呵，一群平民。', x, y - h * 1.08, Math.round(h * 0.09), 0.85); },
+  play(s, x, y, h, R) { const t = s.f, P = 240, u = (t % P) / P, cell = u < 0.4 ? 0 : u < 0.6 ? 1 : 2, jx = cell === 1 ? (u - 0.4) / 0.2 * h * 0.8 : cell === 2 ? h * 0.8 : 0, jy = cell === 1 ? -Math.sin((u - 0.4) / 0.2 * Math.PI) * h * 0.45 : 0, wig = cell === 0 ? Math.sin(t * 0.6) * 0.03 : 0;
+    if (!thSpr('th_gem_play_' + cell, x + jx, y + jy, h, { dim: 0.72, rot: wig })) return; if (R.big) thBubble('喵？！', x + jx, y + jy - h * 1.05, Math.round(h * 0.16)); },
+  flip(s, x, y, h, R) { const t = s.f, night = Math.floor(t / 300) % 2 === 1, cell = night ? 1 : 0; if (!thSpr('th_glm_flip_' + cell, x, y, h, { dim: night ? 0.62 : 0.74 })) return;
+    if (!night) { for (let i = 0; i < 3; i++) { const q = ((t * 0.01 + i / 3) % 1); txt('z', x + h * 0.3 + q * h * 0.25, y - h * (0.55 + q * 0.4), { size: Math.round(h * (0.08 + q * 0.06)), w: 900, fill: '#E8ECFF', align: 'center', a: Math.sin(q * Math.PI) * 0.8 }); } } else thBubble(Math.floor(t / 60) % 2 ? '凌晨三点，灵感爆发！' : '再写一个脚本！', x, y - h * 1.06, Math.round(h * 0.09), 0.85); },
+  scroll(s, x, y, h, R) { const t = s.f, P = 360, u = (t % P) / P, cell = R.big || u > 0.7 ? 1 : 0; if (!thSpr('th_kimi_scroll_' + cell, x, y, h, { dim: 0.72, sy: cell ? 1 + Math.sin(t * 0.1) * 0.02 : 1 })) return;
+    if (cell) thBubble('二百万字……读不完了……', x, y - h * 1.0, Math.round(h * 0.1), 0.85); else if (u > 0.35) thBubble('第 1,048,576 字……', x, y - h * 1.0, Math.round(h * 0.1), 0.8); },
+});
 const TH_SET = {      // 每个舞台 2–3 组：[类型, x, y(脚底), h]；画在场地之后、人之前（中景）。用户 17:03：池塘 = 抢饭 + 上香；办公室 = 摸鱼甩锅 + 宠溺；天台 / 会议室 = 降智小孩、拎起吊打、伏地打枪、吃饱跳舞
   waterside: [['pond', 1050, 748, 92], ['incense', 1790, 712, 150]],
   office: [['slack', 1660, 790, 250], ['pet', 400, 690, 135]],
   meeting: [['beat', 470, 700, 205], ['kid', 1560, 700, 140]],
   rooftop: [['gun', 1700, 775, 150], ['dance', 420, 720, 140]],
   fishplanet: [['dance', 330, 770, 100]],
+  nextdoor: [['scroll', 420, 800, 150], ['flip', 1720, 790, 150]],
+  interview: [['tea', 360, 780, 170], ['play', 1560, 790, 110]],
 };
 const THEATER = {
   back(s) { if (typeof st3Track === 'function') st3Track(s); },
   mid(s) { if (TH_OFF || typeof document === 'undefined') return; thLoad(); const L = TH_SET[s.stage]; if (!L) return; const R = thReact(s);
     for (const [k, x, y, h] of L) { g.save(); try { THV[k](s, x, y, h, R); } finally { g.restore(); } } },
 };
-for (const k of ['office', 'meeting', 'rooftop', 'fishplanet']) { const f0 = STAGE2[k]; STAGE2[k] = function (s, kick) { if (f0) f0.call(this, s, kick); THEATER.mid(s); }; }      // 老舞台：在原有动态层之后加小剧场
+for (const k of ['office', 'meeting', 'rooftop', 'fishplanet', 'nextdoor', 'interview']) { const f0 = STAGE2[k]; STAGE2[k] = function (s, kick) { if (f0) f0.call(this, s, kick); THEATER.mid(s); }; }      // 老舞台：在原有动态层之后加小剧场
