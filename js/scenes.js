@@ -239,6 +239,7 @@ function drawClear(t, o) { loadLazy('arc');
 // —— 第 79 圈：舞台选择（P5 拼贴卡片）——
 function stgImgDraw(id, x, y, w, h, home) {      // 舞台底图按 cover 方式填满 (x,y,w,h)；精简版没有池塘底图时画一块夜色兜底
   const sid = id === 'auto' ? home : id, im = sid && IM['g:' + sid];
+  if (id === 'rand') { g.fillStyle = lg(0, y, 0, y + h, ['#3A0A14', '#12060C']); g.fillRect(x, y, w, h); const R = ['office', 'meeting', 'nextdoor', 'fishplanet', 'interview'], n = Math.floor(performance.now() / 260) % R.length, im2 = IM['g:' + R[n]]; if (im2 && im2.width) { g.save(); g.globalAlpha = 0.28; const k = Math.max(w / im2.width, h / im2.height); g.drawImage(im2, x + (w - im2.width * k) / 2, y + (h - im2.height * k) / 2, im2.width * k, im2.height * k); g.restore(); } txt('?', x + w / 2, y + h * 0.78, { size: h * 0.78, w: 900, fam: F.en, fill: '#fff', stroke: '#E8203A', sw: Math.max(4, h * 0.05), align: 'center', rot: -0.08 }); return; }      // 第 80 圈：随机卡 = 底图轮播 + 大问号
   if (im && im.width) { const k = Math.max(w / im.width, h / im.height), sw = w / k, sh = h / k; g.drawImage(im, (im.width - sw) / 2, Math.min(im.height - sh, (im.height - sh) * 0.35), sw, sh, x, y, w, h); }
   else { g.fillStyle = lg(0, y, 0, y + h, ['#24346E', '#0B1230', '#05070F']); g.fillRect(x, y, w, h); g.fillStyle = 'rgba(255,240,200,0.9)'; g.beginPath(); g.arc(x + w * 0.72, y + h * 0.28, h * 0.1, 0, 7); g.fill(); g.fillStyle = '#C0283A'; g.fillRect(x + w * 0.2, y + h * 0.45, w * 0.18, h * 0.05); g.fillRect(x + w * 0.23, y + h * 0.45, w * 0.025, h * 0.4); g.fillRect(x + w * 0.335, y + h * 0.45, w * 0.025, h * 0.4); }
 }
@@ -252,7 +253,7 @@ function drawStageSel(t, o) {
   g.save(); g.translate(px, py); g.rotate(-0.025); g.fillStyle = '#05030C'; stgPath(-18, -18, pw + 36, ph + 36, 40); g.fill(); g.fillStyle = '#fff'; stgPath(-8, -8, pw + 16, ph + 16, 40); g.fill();
   stgPath(0, 0, pw, ph, 40); g.save(); g.clip(); g.globalAlpha = 0.4 + 0.6 * sl; stgImgDraw(cur.id, -40, 0, pw + 80, ph, home); g.restore(); g.restore();      // 大预览：黑白双框 + 斜切
   const no = String(o.i).padStart(2, '0'); txt('No.' + no, 120, 900, { size: 120, w: 900, fam: F.en, fill: ink, stroke: '#05030C', sw: 12, rot: -0.05, a: sl });
-  txt(cur.id === 'auto' ? '主场（跟着对手走）' : STAGES[cur.id].name, 470, 880, { size: 62, w: 900, fill: '#fff', stroke: '#05030C', sw: 10, rot: -0.03, a: sl });
+  txt(cur.id === 'auto' ? '主场（跟着对手走）' : cur.id === 'rand' ? '随机（每一关抽一个）' : STAGES[cur.id].name, 470, 880, { size: 62, w: 900, fill: '#fff', stroke: '#05030C', sw: 10, rot: -0.03, a: sl });
   if (cur.id === 'auto') txt('这一场：' + STAGES[home].name.split(' · ')[0] + '　每场换成对手的主场', 476, 940, { size: 30, w: 800, fill: '#FFD0D6', stroke: '#05030C', sw: 6, a: sl });
   const n = L.length, cw = 222, ch = 132, gap = 24, x0 = 1400, y0 = 190;      // 右侧竖排卡片
   for (let k = 0; k < n; k++) { const sel = k === o.i, cx = x0 + (k % 2) * (cw + gap) + (sel ? -14 : 0), cy = y0 + Math.floor(k / 2) * (ch + gap + 6) + (k % 2) * 34 - (sel ? 8 : 0), a = sel ? 1 : 0.62;
@@ -260,5 +261,5 @@ function drawStageSel(t, o) {
     stgPath(0, 0, cw, ch, 14); g.save(); g.clip(); stgImgDraw(L[k].id, -14, 0, cw + 28, ch, home); if (!sel) { g.fillStyle = 'rgba(5,3,12,0.35)'; g.fillRect(-14, 0, cw + 28, ch); } g.restore();
     txt(String(k).padStart(2, '0'), 6, 34, { size: 30, w: 900, fam: F.en, fill: sel ? ink : '#fff', stroke: '#05030C', sw: 6 }); txt(L[k].name, cw - 8, ch - 10, { size: 22, w: 900, fill: '#fff', stroke: '#05030C', sw: 5, align: 'right' }); g.restore(); }
   if (o.lock != null) { const q = Math.min(1, (t - o.lock) / 0.25); g.save(); g.globalAlpha = q * (t - o.lock < 0.5 ? 1 : Math.max(0, 1 - (t - o.lock - 0.5) * 3)); txt('决定！', 960, 560, { size: 200, w: 900, fill: '#fff', stroke: ink, sw: 18, stroke2: '#05030C', sw2: 34, align: 'center', rot: -0.08, sc: 1.4 - 0.4 * E.out3(q) }); g.restore(); }
-  else txt('← → 选择　J / Enter 决定　' + Math.max(0, Math.ceil(6 - t)) + ' 秒后自动决定', 1880, 1050, { size: 28, w: 800, fill: 'rgba(255,255,255,0.85)', align: 'right' });
+  else txt('← → 选择　J / Enter 决定　' + Math.max(0, Math.ceil(4 - t)) + ' 秒后自动决定（默认停在上次选的）', 1880, 1050, { size: 28, w: 800, fill: 'rgba(255,255,255,0.85)', align: 'right' });
 }

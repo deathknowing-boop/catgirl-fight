@@ -15,7 +15,7 @@ function sfx(name, vol = 1) {
 }
 function bgmSet(id, play = true) {      // 切歌：停掉旧的，新的一首从头放（第一次用到才建 <audio>，所以不进首屏包）
   AU.bgms = AU.bgms || {}; if (AU.bgm) AU.bgm.pause(); AU.bgm = null; const L = typeof BGMS !== 'undefined' ? BGMS : [{ id: 'office', src: 'assets/bgm.m4a' }], b = L.find(x => x.id === id);
-  if (!b || !b.src || (window.NO_BGM && id === 'office')) return;
+  if (!b || !b.src || (window.NO_BGM && !b.pack)) return;
   if (!AU.bgms[id]) { const a = new Audio(); a.loop = true; a.volume = 0.42; a.preload = 'auto'; AU.bgms[id] = a;
     if (window.NO_BGM && b.pack) fetch(b.pack).then(r => r.arrayBuffer()).then(ab => { a.src = URL.createObjectURL(new Blob([ab], { type: 'audio/mp4' })); if (AU.bgm === a && AU.started && AU.on) a.play().catch(() => 0); }).catch(() => 0);      // 网页版：取回数据包再放
     else a.src = b.src; }
@@ -121,4 +121,38 @@ function auWatch(s) {
     if (c.fin && W.cine < E + 2 && t >= E + 2) vox(id + '_ck', 1, 'p' + c.who);
     if (!c.fin && W.cine < E + 10 && t >= E + 10) vox(id + '_cl', 1, 'p' + c.who);
     W.cine = t; } else W.cine = -1;
+  auSynWatch(s, W);      // 第 80 圈：光束 / 书页风暴 / 召唤巨鲸专属音、池塘雨声
+}
+// ===== 第 80 圈：程序合成的专属音（WebAudio 现场合成，不占包体）=====
+// beam = GPT 扇形光束（聚能上扬 + 持续电流嗡鸣 + 高频闪烁）；pages = Claude 书页风暴（几十下纸张翻飞）；whale = 召唤巨鲸（低沉鲸歌滑音 + 浪涌）；雨声 = 池塘舞台循环
+function auNoiseBuf() { if (AU.nb) return AU.nb; const n = AU.ctx.sampleRate * 2, b = AU.ctx.createBuffer(1, n, AU.ctx.sampleRate), d = b.getChannelData(0); for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1; return (AU.nb = b); }
+function auSyn(kind, vol = 1) {
+  if (!AU.ctx || !AU.on) return; const c = AU.ctx, t0 = c.currentTime, out = c.createGain(); out.gain.value = vol; out.connect(AU.gain);
+  const env = (g, pts) => { g.gain.setValueAtTime(pts[0][1], t0 + pts[0][0]); for (let i = 1; i < pts.length; i++) g.gain.linearRampToValueAtTime(pts[i][1], t0 + pts[i][0]); };
+  const noise = (dur, type, f0, f1, q, pts, at = 0) => { const n = c.createBufferSource(); n.buffer = auNoiseBuf(); n.loop = true; const bf = c.createBiquadFilter(); bf.type = type; bf.Q.value = q; bf.frequency.setValueAtTime(f0, t0 + at); bf.frequency.exponentialRampToValueAtTime(f1, t0 + at + dur); const g = c.createGain(); env(g, pts.map(([tt, v]) => [tt + at, v])); n.connect(bf); bf.connect(g); g.connect(out); n.start(t0 + at, Math.random()); n.stop(t0 + at + dur + 0.05); };
+  const osc = (type, f, pts, glide, dur, lp) => { const o = c.createOscillator(); o.type = type; o.frequency.setValueAtTime(f, t0); if (glide) glide(o.frequency); const g = c.createGain(); env(g, pts); let node = o; if (lp) { const bf = c.createBiquadFilter(); bf.type = 'lowpass'; bf.frequency.value = lp; o.connect(bf); node = bf; } node.connect(g); g.connect(out); o.start(t0); o.stop(t0 + dur); return o; };
+  if (kind === 'beam') {
+    noise(0.35, 'bandpass', 400, 4200, 2, [[0, 0], [0.3, 0.5], [0.35, 0]]);      // 聚能
+    osc('sawtooth', 70, [[0, 0], [0.32, 0], [0.36, 0.32], [1.1, 0.26], [1.4, 0]], fq => { fq.setValueAtTime(70, t0 + 0.32); fq.linearRampToValueAtTime(92, t0 + 1.4); }, 1.45, 900);      // 主光束嗡鸣
+    osc('square', 1760, [[0, 0], [0.34, 0], [0.36, 0.05], [1.2, 0.03], [1.4, 0]], fq => { for (let k = 0; k < 20; k++) fq.setValueAtTime(1500 + (k % 3) * 420, t0 + 0.34 + k * 0.05); }, 1.45, 5000);      // 数据条闪烁
+    noise(1.1, 'highpass', 2500, 6000, 0.7, [[0, 0.24], [0.9, 0.16], [1.1, 0]], 0.33);      // 光束的嘶声
+  } else if (kind === 'pages') {
+    for (let k = 0; k < 26; k++) { const at = 0.04 * k + Math.random() * 0.05, f = 1800 + Math.random() * 2600; noise(0.07, 'bandpass', f, f * 0.7, 1.4, [[0, 0], [0.008, 0.35 * (1 - k / 34)], [0.07, 0]], at); }      // 一下一下的翻页声
+    noise(1.3, 'bandpass', 600, 2400, 0.8, [[0, 0], [0.25, 0.25], [1.0, 0.18], [1.3, 0]]);      // 书页呼啸
+    osc('sine', 523, [[0, 0], [0.05, 0.08], [1.2, 0.0]], fq => fq.setValueAtTime(784, t0 + 0.3), 1.25);      // 巨书的一声铃
+  } else if (kind === 'whale') {
+    osc('sine', 260, [[0, 0], [0.25, 0.4], [1.3, 0.34], [2.0, 0]], fq => { fq.linearRampToValueAtTime(180, t0 + 0.7); fq.linearRampToValueAtTime(320, t0 + 1.2); fq.linearRampToValueAtTime(140, t0 + 2.0); }, 2.05);      // 鲸歌滑音
+    osc('triangle', 130, [[0, 0], [0.3, 0.22], [1.5, 0.18], [2.0, 0]], fq => { fq.linearRampToValueAtTime(90, t0 + 0.7); fq.linearRampToValueAtTime(160, t0 + 1.2); fq.linearRampToValueAtTime(70, t0 + 2.0); }, 2.05);
+    noise(1.6, 'lowpass', 300, 1800, 0.6, [[0, 0], [0.5, 0.15], [1.2, 0.42], [1.6, 0]], 0.3);      // 浪涌
+  } }
+function auSynWatch(s, W) {
+  W.syn = W.syn || [null, null];
+  s.F.forEach((f, i) => { const M = f.mv; if (!M) return; const t = f.t, id = M.id;
+    if (id === 'beam' && t >= 2 && W.syn[i] !== M) { W.syn[i] = M; auSyn('beam', 0.9); }
+    else if (id === 'whalefall' && t >= 8 && W.syn[i] !== M) { W.syn[i] = M; auSyn('whale', 0.9); }
+    else if (M.got && M.fin != null && !M.miss && W.syn[i] !== M && s.F[i].id === 'claude') { W.syn[i] = M; auSyn('pages', 1.4); } });
+  const want = s.stage === 'waterside' && AU.on ? 1 : 0; AU.rainT = performance.now();
+  if (want && !AU.rain) { const c = AU.ctx, n = c.createBufferSource(); n.buffer = auNoiseBuf(); n.loop = true; const hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 900; const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 7000; const g = c.createGain(); g.gain.value = 0; n.connect(hp); hp.connect(lp); lp.connect(g); g.connect(AU.gain); n.start(); AU.rain = g;
+    setInterval(() => { if (AU.rain && performance.now() - AU.rainT > 400) AU.rain.gain.setTargetAtTime(0, AU.ctx.currentTime, 0.2); }, 250); }
+  if (AU.rain) AU.rain.gain.setTargetAtTime(want ? 0.05 : 0, AU.ctx.currentTime, 0.4);
 }

@@ -47,7 +47,7 @@ const STAGE2 = {
     g.restore();
     { g.save(); g.fillStyle = lg(0, hor - 60, 0, hor + 110, ['rgba(70,70,150,0)', 'rgba(70,70,150,0.42)', 'rgba(40,46,100,0)']); g.fillRect(-300, hor - 60, 2700, 170); g.restore(); }      // 地面和远景之间一层雾带
     // 地平线上的小大肥鱼观众（用游戏里的 Q 版帧缩小），打中 / 超必杀时跳起来欢呼；视差 0.25
-    const cheer = s.hitstop > 0 || !!s.fz || GF.cur === 'hype', crowd = ['win', 'stance', 'jab3', 'win', 'stance'];
+    const cheer = s.hitstop > 0 || !!s.fz || GF.cur === 'hype', crowd = ['wn11', 'stance', 'eat2', 'wn14', 'stance', 'wn12'];      // 第 80 圈：去掉叉腰笑 win，换成庆祝 / 吃饭帧
     g.save(); g.translate(camx * 0.25, 0);
     for (let i = 0; i < 9; i++) { const nm = 'f_ds_' + crowd[i % crowd.length], n = META.spr[nm] ? nm : 'f_ds_stance'; if (!META.spr[n] || !IM['s:' + n]) continue;
       const x = 120 + i * 230 + (i % 2) * 40, hop = cheer ? Math.abs(Math.sin(t * 0.25 + i)) * 26 : Math.abs(Math.sin(t * 0.04 + i * 1.7)) * 4, h = 78 + (i % 3) * 8;
@@ -103,14 +103,26 @@ function steamAt(t, x, y, n, H, a0) { for (let i = 0; i < n; i++) { const k = ((
   g.beginPath(); g.moveTo(xx, y - k * H); g.quadraticCurveTo(xx + Math.sin(t * 0.07 + i) * 14, y - k * H - H * 0.25, xx, y - k * H - H * 0.5); g.stroke(); g.restore(); } }
 function petal(r, col) { g.fillStyle = col; g.beginPath(); g.moveTo(-r, 0); g.quadraticCurveTo(-r * 0.2, -r * 0.75, r * 0.85, -r * 0.28); g.lineTo(r * 0.55, 0); g.lineTo(r * 0.85, r * 0.28); g.quadraticCurveTo(-r * 0.2, r * 0.75, -r, 0); g.closePath(); g.fill(); }      // 樱花瓣：尖头 + 尾端小缺口
 const CROWD_ALL = ['ds', 'gem', 'gpt', 'claude', 'kimi', 'qwen', 'dou', 'glm', 'grok'];
-function crowd(s, spots, env, seed, clipY) {      // 场边 Q 版观众：不上场的角色（缺了就从头补），待机轻晃、偶尔换 win 姿势；打中 / 超必杀时跳，K.O. 全体欢呼
+function crowd(s, spots, env, seed, clipY) {      // 场边 Q 版观众：不上场的角色（缺了就从头补），待机轻晃、偶尔换庆祝帧（第 80 圈起不用叉腰笑 win）；打中 / 超必杀时跳，K.O. 全体欢呼
   const on = s.F.map(f => f.id), L = CROWD_ALL.filter(i => !on.includes(i)); if (!L.length) return; const t = s.f, H = ST3.hype, mid = (s.F[0].x + s.F[1].x) / 2, ko = s.phase === 'ko' || s.done;
-  spots.forEach((p, i) => { const id = L[(i + seed) % L.length], cheerOne = ko || (H > 0.3 && hash(i * 7 + Math.floor(t / 20)) < H), pose = cheerOne || hash(i * 3 + Math.floor(t / 150)) > 0.82 ? 'win' : 'stance', n = 'f_' + id + '_' + pose, nm = META.spr[n] && IM['s:' + n] ? n : 'f_' + id + '_stance'; if (!META.spr[nm] || !IM['s:' + nm]) return;
+  spots.forEach((p, i) => { const id = L[(i + seed) % L.length], cheerOne = ko || (H > 0.3 && hash(i * 7 + Math.floor(t / 20)) < H), pose = cheerOne ? 'wn1' + (1 + (Math.floor(t / 14 + i * 1.7) % 4)) : hash(i * 3 + Math.floor(t / 150)) > 0.82 ? 'wn1' + (1 + i % 4) : 'stance', n = 'f_' + id + '_' + pose, nm = META.spr[n] && IM['s:' + n] ? n : 'f_' + id + '_stance'; if (!META.spr[nm] || !IM['s:' + nm]) return;
     const hop = cheerOne ? Math.abs(Math.sin(t * 0.22 + i * 1.3)) * p[2] * 0.22 : Math.abs(Math.sin(t * 0.035 + i * 1.7)) * p[2] * 0.02, sq = 1 + (cheerOne ? 0 : Math.sin(t * 0.06 + i) * 0.012);
     g.save(); if (clipY) { g.beginPath(); g.rect(p[0] - p[2], p[1] - p[2] * 1.6, p[2] * 2, clipY - (p[1] - p[2] * 1.6)); g.clip(); }      // clipY：这条线以下被前景挡住（桌沿）
     g.fillStyle = 'rgba(0,0,10,0.35)'; g.beginPath(); g.ellipse(p[0], p[1], p[2] * 0.26 * (1 - hop / p[2]), p[2] * 0.05, 0, 0, 7); g.fill();
-    spr(nm, p[0], p[1] - hop, p[2], { flip: p[0] > mid, sy: sq, env }); g.restore();
+    spr(nm, p[0], p[1] - hop, p[2], { flip: p[0] > mid, sy: sq, env }); g.restore(); crowdProp(t, p, i, hop, cheerOne, id);
     if (cheerOne && H > 0.6 && hash(i * 11 + Math.floor(t / 40)) > 0.6) { const em = ['！', '好！', '饭！', '哇'][Math.floor(hash(i + Math.floor(t / 40)) * 4)]; txt(em, p[0], p[1] - hop - p[2] * 1.05, { size: Math.round(p[2] * 0.22), w: 900, fill: '#FFF4C0', stroke: '#2A1A40', sw: 5, align: 'center', a: 0.9 }); } });
+}
+const CROWD_COL = { ds: '#4FC3FF', gem: '#C77DFF', gpt: '#E9E4FF', claude: '#FF9A3C', kimi: '#B8C4FF', qwen: '#7C8CFF', dou: '#FF6FA8', glm: '#9AA0B0', grok: '#FFD54F' };
+function crowdProp(t, p, i, hop, on, id) {      // 第 80 圈：观众应援道具（程序画）：i%3 = 0 荧光棒 / 1「好！」牌 / 2 拍手星星；平时放低，欢呼时举高挥动
+  const R = p[2], x = p[0], y = p[1] - hop - R * 0.62, kind = i % 3, col = CROWD_COL[id] || '#FFE066', u = t * (on ? 0.32 : 0.05) + i * 1.9, a = on ? 0.95 : 0.55;
+  g.save(); g.globalAlpha = a;
+  if (kind === 0) { const ang = -0.5 + Math.sin(u) * (on ? 0.8 : 0.2), L = R * 0.42, bx = x + R * 0.32, by = y + (on ? -R * 0.18 : R * 0.15), ex = bx + Math.sin(ang) * L, ey = by - Math.cos(ang) * L;
+    g.globalCompositeOperation = 'lighter'; g.lineCap = 'round'; g.strokeStyle = col; g.lineWidth = R * 0.11; g.globalAlpha = a * 0.35; g.beginPath(); g.moveTo(bx, by); g.lineTo(ex, ey); g.stroke(); g.globalAlpha = a; g.lineWidth = R * 0.045; g.strokeStyle = '#FFFFFF'; g.beginPath(); g.moveTo(bx, by); g.lineTo(ex, ey); g.stroke(); }
+  else if (kind === 1) { const sw = R * 0.5, sh = R * 0.3, bx = x - R * 0.05, by = y - (on ? R * 0.35 + Math.abs(Math.sin(u)) * R * 0.12 : 0), rot = Math.sin(u * 0.8) * (on ? 0.2 : 0.05);
+    g.translate(bx, by); g.rotate(rot); g.fillStyle = '#5A3A20'; g.fillRect(-R * 0.02, 0, R * 0.04, R * 0.42); g.fillStyle = '#FFF6D8'; g.strokeStyle = '#2A1A40'; g.lineWidth = Math.max(2, R * 0.025); g.fillRect(-sw / 2, -sh, sw, sh); g.strokeRect(-sw / 2, -sh, sw, sh);
+    txt(['好！', '饭！', '冲！', '赢！'][(i >> 1) % 4], 0, -sh * 0.2, { size: Math.round(sh * 0.72), w: 900, fill: '#E8203A', align: 'center' }); }
+  else if (on) { for (let k = 0; k < 3; k++) { const q = (t * 0.05 + k / 3 + i * 0.3) % 1, sx = x + Math.sin(k * 2.1 + i) * R * 0.35, sy = y - q * R * 0.6, r = R * 0.06 * (1 - q); g.globalAlpha = (1 - q) * a; g.fillStyle = k % 2 ? '#FFE066' : col; g.beginPath(); for (let j = 0; j < 8; j++) { const rr = j % 2 ? r * 0.4 : r, aa = j * Math.PI / 4; g.lineTo(sx + Math.cos(aa) * rr, sy + Math.sin(aa) * rr); } g.closePath(); g.fill(); } }
+  g.restore();
 }
 function bokeh(s, list, k) {      // 近景虚化光斑：视差 k（> 1，比人动得多），list = [[x, y, r, 色, a]]
   if (PAR_OFF) return; const camx = s.cam ? s.cam.x : 90, sh = -(camx - 90) * (k - 1), t = s.f; g.save(); g.globalCompositeOperation = 'lighter';
@@ -215,7 +227,7 @@ const WS_SIL = {};
 function wsSil(name, col) { const key = name + col; if (WS_SIL[key]) return WS_SIL[key]; const im = IM['s:' + name]; if (!im || typeof document === 'undefined') return null; const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const x = c.getContext('2d'); x.drawImage(im, 0, 0); x.globalCompositeOperation = 'source-in'; x.fillStyle = col; x.fillRect(0, 0, c.width, c.height); return WS_SIL[key] = c; }
 STAGE2B.waterside = function (s) {      // 底图之后、调色之前：远处巨型大肥鱼剪影 + 云里的鲸鱼 + 湖面月光柱（有生图底图时这些图里已经有了，跳过）
   const t = s.f, camx = s.cam ? s.cam.x : 90, k = PAR_OFF ? 0 : 1; if (IM['g:waterside']) { if (typeof THEATER !== 'undefined') THEATER.back(s); return; }
-  { const ds = s.F.find(f => f.id === 'ds') || s.F[0], hurt = ds.st === 'hit' || ds.st === 'launch' || ds.st === 'down', win = s.phase === 'ko' || s.done, nm = win ? 'f_ds_win' : hurt ? 'f_ds_hit1' : 'f_ds_stance', n = META.spr[nm] && IM['s:' + nm] ? nm : 'f_ds_stance', m = META.spr[n];
+  { const ds = s.F.find(f => f.id === 'ds') || s.F[0], hurt = ds.st === 'hit' || ds.st === 'launch' || ds.st === 'down', win = s.phase === 'ko' || s.done, nm = win ? 'f_ds_wn11' : hurt ? 'f_ds_hit1' : 'f_ds_stance', n = META.spr[nm] && IM['s:' + nm] ? nm : 'f_ds_stance', m = META.spr[n];
     const sil = m && wsSil(n, '#26386E'), rim = m && wsSil(n, '#8FC0FF');
     if (sil) { const H = 640, sc = H / m.h, w = m.w * sc, pad = m.pad * sc, bob = Math.sin(t * 0.02) * 8, x = 1240 + (camx - 90) * 0.5 * k * 0.3, y = WS.HOR + 40 + bob;
       g.save(); g.globalAlpha = 0.9; g.translate(x, y); g.scale(-1, 1); g.drawImage(rim, -w / 2 - pad - 3, -H - pad - 3, w + 2 * pad, H + 2 * pad); g.globalAlpha = 0.85; g.drawImage(sil, -w / 2 - pad, -H - pad, w + 2 * pad, H + 2 * pad); g.restore();      // 剪影 + 一圈冷色描边光

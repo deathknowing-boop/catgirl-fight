@@ -15,7 +15,8 @@ function startPlay() {
   cv.addEventListener('pointerdown', e => { auInit(); bgmPlay(); cv.focus(); const R = cv.getBoundingClientRect(), x = (e.clientX - R.left) * 1920 / R.width, y = (e.clientY - R.top) * 1080 / R.height; if ((sc === 'title' || sc === 'select' || (sc === 'fight' && G.pause)) && typeof optClick === 'function' && optClick(x, y)) { G.diff = optDiff().base; return; } press.push('Enter'); });      // 第 68 圈：点设置条切换
   // 第 65 圈（用户反馈：打完 3 场就结束了）：完整街机模式 = 8 场常规（第 5 场是宿敌战，赛前有对话）+ 第 9 场最终头目（吃饱了的本体，选大肥鱼时换成哈基米本体）→ 通关结局 / STAFF / 成绩
   const NST = () => G.opp.length, isBoss = () => G.stageNo === NST() && NST() > 3, isRival = () => G.rivalNo === G.stageNo;
-  const stageOf = () => isBoss() ? 'rooftop' : (typeof OPT !== 'undefined' && OPT.stage && OPT.stage !== 'auto' && STAGES[OPT.stage]) ? OPT.stage : G.stageNo === NST() ? 'office' : HOME[G.opp[G.stageNo - 1]];      // 第 68 圈：V 键选舞台
+  const stageOf = () => isBoss() ? 'rooftop' : (typeof OPT !== 'undefined' && OPT.stage === 'rand') ? stRand() : (typeof OPT !== 'undefined' && OPT.stage && OPT.stage !== 'auto' && STAGES[OPT.stage]) ? OPT.stage : G.stageNo === NST() ? 'office' : HOME[G.opp[G.stageNo - 1]];      // 第 68 圈：V 键选舞台
+  const stRand = () => { const R = G.stR || (G.stR = {}), k = G.mode + ':' + G.stageNo; if (!R[k]) { const L = Object.keys(STAGES).filter(x => x !== 'rooftop'); R[k] = L[Math.floor(Math.random() * L.length)]; } return R[k]; };      // 第 80 圈：舞台「随机」= 每一关抽一个，同一关内固定
   const padLv = () => Math.max(1, Math.min(8, G.diff - 1 + Math.floor((G.stageNo - 1) / 3) + (isBoss() ? 1 : 0)));
   // 第 30 圈：命中音效分层（轻 / 中 / 重 / COUNTER / PUNISH COUNTER / 撞墙 / 地面反弹）
   function hitLayers(s, e) {
@@ -37,7 +38,7 @@ function startPlay() {
   function newRound() { if (window.QLAZY && G.opp[G.stageNo]) QLAZY.load(G.opp[G.stageNo]); const fin = G.wins[0] === 1 && G.wins[1] === 1; G.sim = mkRec({ p1: G.p1, p2: G.opp[G.stageNo - 1], skins: [sk1(), sk2()], seed: (Math.random() * 1e9) | 0, stage: stageOf(), round: G.round, wins: G.wins, ctrl: OLDAI ? ['human', 'ai'] : ['human', 'human'], pad: OLDAI ? null : [0, padLv()], level: [1, Math.min(0.95, 0.35 + 0.075 * G.stageNo)], cdm: typeof OPT !== 'undefined' ? OPT.cd : null, final: fin, cheer: [fin, false], boss: isBoss() ? [false, true] : null }); G.evN = 0; vox(G.wins[0] === 1 && G.wins[1] === 1 ? 'ann_r3' : G.round === 2 ? 'ann_r2' : 'ann_r1', 1, 'ann'); }
   const sk1 = () => G.skin1 === 'a' && hasAdult(G.p1) ? 'a' : 'q', sk2 = () => (G.skin2 === 'a' || (G.intrude && G.intrude === G.stageNo)) && hasAdult(G.opp[G.stageNo - 1]) ? 'a' : 'q';      // 第 67 圈 C：乱入的客串固定用成年版（成年形态要好找）
   const adReady = () => [[G.p1, sk1()], [G.opp[G.stageNo - 1], sk2()]].every(([id, k]) => (!window.QLAZY || QLAZY.ready(id)) && (typeof guestReady === 'undefined' || guestReady(id)) && (k !== 'a' || (ADL[id] && ADL[id].n && ADL[id].done >= ADL[id].n && META.spr['fa_' + id + '_stance'])));      // 客串的 Q 版帧在后台加载（guest_meta.js）
-  function newTrain() { G.TR = trainNew(); G.wins = [0, 0]; G.round = 1; G.evN = 0; G.acc = 0; G.sim = new Sim({ p1: G.p1, p2: G.opp[0], skins: [sk1(), sk2()], seed: 7, stage: HOME[G.opp[0]], round: 1, wins: [0, 0], ctrl: ['human', 'human'], intro: 1, cdm: typeof OPT !== 'undefined' ? OPT.cd : null }); for (let i = 0; i < 4; i++) G.sim.tick([{}, {}]); trKeys(G.TR, 'Digit0', G.sim); }
+  function newTrain() { G.TR = trainNew(); G.wins = [0, 0]; G.round = 1; G.evN = 0; G.acc = 0; G.sim = new Sim({ p1: G.p1, p2: G.opp[0], skins: [sk1(), sk2()], seed: 7, stage: (typeof OPT !== 'undefined' && OPT.stage === 'rand') ? stRand() : (typeof OPT !== 'undefined' && STAGES[OPT.stage] && OPT.stage) || HOME[G.opp[0]], round: 1, wins: [0, 0], ctrl: ['human', 'human'], intro: 1, cdm: typeof OPT !== 'undefined' ? OPT.cd : null }); for (let i = 0; i < 4; i++) G.sim.tick([{}, {}]); trKeys(G.TR, 'Digit0', G.sim); }
   function startMatch() { if (sk1() === 'a') loadAdult(G.p1); if (sk2() === 'a') loadAdult(G.opp[G.stageNo - 1]); G.wins = [0, 0]; G.round = 1; go('vs'); }
   function step(t, dt) {
     if (sc === 'title') {
@@ -63,7 +64,7 @@ function startPlay() {
       if (typeof drawOptBar === 'function') drawOptBar(1060, 36, { size: 21 });      // 第 68 圈：配乐 / 难度 / 冷却设置条（原来右下角的「电脑难度 n」文字压在出招表上）
     } else if (sc === 'stage') {      // 第 79 圈：舞台选择（P5 拼贴卡片）：←→ / ↑↓ 选，J 决定，6 秒自动决定；选的舞台写进 OPT.stage（和 V 键同一个设置）
       const L = stageList(); if (S.i == null) { S.i = Math.max(0, L.findIndex(x => x.id === OPT.stage)); S.ti = t; }
-      if (S.lock == null) { for (const k of press) { const d = (k === 'ArrowLeft' || k === 'KeyA') ? -1 : (k === 'ArrowRight' || k === 'KeyD') ? 1 : (k === 'ArrowUp' || k === 'KeyW') ? -2 : (k === 'ArrowDown' || k === 'KeyS') ? 2 : 0; if (d) { S.i = (S.i + d + L.length * 2) % L.length; S.ti = t; sfx('cursor'); } } if ((ok() && t > 0.3) || t > 6) { S.lock = t; OPT.stage = L[S.i].id; optSave(); sfx('confirm'); } }
+      if (S.lock == null) { for (const k of press) { const d = (k === 'ArrowLeft' || k === 'KeyA') ? -1 : (k === 'ArrowRight' || k === 'KeyD') ? 1 : (k === 'ArrowUp' || k === 'KeyW') ? -2 : (k === 'ArrowDown' || k === 'KeyS') ? 2 : 0; if (d) { S.i = (S.i + d + L.length * 2) % L.length; S.ti = t; sfx('cursor'); } } if ((ok() && t > 0.3) || t > 4) { G.stR = {}; S.lock = t; OPT.stage = L[S.i].id; optSave(); sfx('confirm'); } }
       else if (t > S.lock + 0.75 && adReady()) { if (G.mode === 'train') { newTrain(); return go('fight'); } return startMatch(); }
       drawStageSel(t, { L, i: S.i, ti: S.ti, lock: S.lock, p1: G.p1, p2: G.opp[0] });
     } else if (sc === 'vs') {

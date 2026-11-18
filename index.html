@@ -121,7 +121,7 @@
   }));
   if (!touch) document.querySelector('.tc').style.display = 'none'; else document.querySelector('.kb').style.opacity = .6;
   // 进度条：开场包字节 + 已加载的脚本
-  const CORE = 12376371, lbar = document.getElementById('lbar'), ltxt = document.getElementById('ltxt'), go = document.getElementById('go'), t0 = performance.now();
+  const CORE = 12385578, lbar = document.getElementById('lbar'), ltxt = document.getElementById('ltxt'), go = document.getElementById('go'), t0 = performance.now();
   const tick = () => {
     let js = 0; for (const e of performance.getEntriesByType('resource')) if (/\.(js|ttf)(\?|$)/.test(e.name)) js += e.decodedBodySize || e.encodedBodySize || 0;
     const got = (window.CF_DL ? CF_DL.got : 0) + js, p = window.READY ? 1 : Math.min(0.99, got / CORE);

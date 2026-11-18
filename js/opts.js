@@ -1,15 +1,15 @@
 // 第 68 圈：玩家设置（配乐 / 难度 / 冷却），存 localStorage 'cf_opt'（读写都 try/catch：沙箱 iframe 里可能不让用）
 // 标题页 / 选人页 / 暂停菜单：B 切歌、N 难度、C 冷却。页面顶部的设置条 drawOptBar 显示当前值，点一下设置条上的格子也能切
 // pack：网页版（托管只认图片等扩展名）把 m4a 原样存成 .pack.webp，取回来转成 audio/mp4 的 blob URL
-const BGMS = [{ id: 'erhu', name: '二胡摇滚', src: 'assets/bgm_erhu.m4a', pack: 'js/bgm_erhu.pack.webp' }, { id: 'office', name: '原版主题曲', src: 'assets/bgm.m4a' }, { id: 'off', name: '关闭' }];
+const BGMS = [{ id: 'office', name: '《token来！》', src: 'assets/bgm.m4a', pack: 'js/bgm_tok.pack.webp' }, { id: 'erhu', name: '二胡摇滚', src: 'assets/bgm_erhu.m4a', pack: 'js/bgm_erhu.pack.webp' }, { id: 'off', name: '关闭' }];      // 第 80 圈：主题曲《token来！》排第一、默认；网页版用低码率数据包
 const DIFFS = [{ id: 'easy', name: '简单', base: 1, col: '#5BE08A' }, { id: 'normal', name: '普通', base: 3, col: '#7FC8FF' }, { id: 'hard', name: '困难', base: 5, col: '#FFB347' }, { id: 'hell', name: '地狱', base: 7, col: '#FF5A6E' }];      // base = 第一关手柄电脑级数 + 1（play.js 的 padLv：base − 1 + 每三关 +1 + 头目 +1）。旧默认 4 → 现在默认「普通」= 3，低一档
 const CDS = [{ id: 'fast', name: '爽快 0CD', col: '#FFE066' }, { id: 'std', name: '标准（CD 减半）', col: '#BFD4FF' }];
-const OPT = (() => { const d = { bgm: 'erhu', diff: 'normal', cd: 'fast', stage: 'auto' }; try { const o = JSON.parse(localStorage.getItem('cf_opt') || '{}'); for (const k in d) if (o[k] != null) d[k] = o[k]; } catch (e) {} return d; })();
+const OPT = (() => { const d = { bgm: 'office', diff: 'normal', cd: 'fast', stage: 'auto', bgmv: 2 }; try { const o = JSON.parse(localStorage.getItem('cf_opt') || '{}'); for (const k in d) if (o[k] != null) d[k] = o[k]; if (o.bgmv !== 2) { d.bgm = 'office'; d.bgmv = 2; } } catch (e) {} return d; })();
 function optSave() { try { localStorage.setItem('cf_opt', JSON.stringify(OPT)); } catch (e) {} }
-function bgmList() { return BGMS.filter(b => !(window.NO_BGM && b.id === 'office')); }      // 网页版不带原版主题曲（体积上限），只有二胡摇滚 / 关闭
-if (!bgmList().some(b => b.id === OPT.bgm)) OPT.bgm = 'erhu';
+function bgmList() { return BGMS.filter(b => !(window.NO_BGM && b.src && !b.pack)); }      // 第 80 圈：网页版两首都带（低码率数据包）
+if (!bgmList().some(b => b.id === OPT.bgm)) OPT.bgm = 'office';
 const OPTUI = { toast: null, toastT: 0, hit: [] };
-function stageList() { return [{ id: 'auto', name: '主场' }].concat(Object.keys(typeof STAGES !== 'undefined' ? STAGES : {}).filter(k => k !== 'rooftop').map(k => ({ id: k, name: STAGES[k].name.split(' · ')[0] }))); }      // 第 68 圈：舞台选择（自动 = 对手主场；最终头目固定天台）
+function stageList() { return [{ id: 'auto', name: '主场' }].concat(Object.keys(typeof STAGES !== 'undefined' ? STAGES : {}).filter(k => k !== 'rooftop').map(k => ({ id: k, name: STAGES[k].name.split(' · ')[0] }))).concat([{ id: 'rand', name: '随机' }]); }      // 第 68 圈：舞台选择（自动 = 对手主场；最终头目固定天台）
 function optDiff() { return DIFFS.find(d => d.id === OPT.diff) || DIFFS[1]; }
 function optNext(k) {      // k = 'bgm' | 'diff' | 'cd'
   const L = k === 'bgm' ? bgmList() : k === 'diff' ? DIFFS : k === 'stage' ? stageList() : CDS, i = L.findIndex(x => x.id === OPT[k]), n = L[(i + 1) % L.length]; OPT[k] = n.id; optSave();
