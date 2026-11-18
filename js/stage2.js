@@ -244,7 +244,7 @@ STAGE2F.waterside = function (s, FL) {      // 人之后：雨丝（两层，近
 // ===== 第 77 圈：背景梗小剧场 THEATER（用户 16:47 / 16:48：背景里大量会动的大肥鱼梗）=====
 // 图：assets/th/<名>_<格>.webp（GPT 出的绿幕整张 → gtools/th_cut.py 抠底切格）。只进完整版：打包版没有 th 懒加载包时整段不画；?theater=0 关。
 // 画法：每格先压暗降饱和缓存一次（不抢前景），程序做循环动画（换格、上下浮、挤压、水花 / 烟 / 爱心 / 星星粒子、字幕牌），随战况反应（重击时「！」跳一下，K.O. 全体欢呼）。
-const TH = { lz: 0, dk: {} }, TH_N = { th_pond_fish: 4, th_incense: 2, th_slack: 1, th_claude_pet: 2, th_gpt_kid: 2, th_claude_beat: 2, th_ds_gun: 2, th_ds_dance: 3, th_grok_tea: 2, th_gem_play: 3, th_glm_flip: 2, th_kimi_scroll: 2 };      // 有图的才列（缺图会报 IMG FAIL）
+const TH = { lz: 0, dk: {} }, TH_N = { th_pond_fish: 4, th_incense: 2, th_slack: 1, th_claude_pet: 2, th_gpt_kid: 2, th_claude_beat: 2, th_ds_gun: 2, th_ds_dance: 3, th_grok_tea: 2, th_gem_play: 3, th_glm_flip: 2, th_kimi_scroll: 2, th_qwen_agents: 3 };      // 有图的才列（缺图会报 IMG FAIL）
 const TH_OFF = typeof location !== 'undefined' && /[?&]theater=0/.test(location.search);
 function thLoad() { if (TH.lz || TH_OFF || typeof document === 'undefined') return; TH.lz = 1; if (window.LAZY_PACKS && !LAZY_PACKS.th) return;
   const L = []; for (const n in TH_N) for (let i = 0; i < TH_N[n]; i++) L.push(['t:' + n + '_' + i, 'assets/th/' + n + '_' + i + '.webp']); if (typeof LAZY !== 'undefined') { LAZY.th = () => L; loadLazy('th'); } }
@@ -301,12 +301,20 @@ Object.assign(THV, {      // 第 78 圈：第二版彩蛋（Grok 病娇大小姐
   scroll(s, x, y, h, R) { const t = s.f, P = 360, u = (t % P) / P, cell = R.big || u > 0.7 ? 1 : 0; if (!thSpr('th_kimi_scroll_' + cell, x, y, h, { dim: 0.72, sy: cell ? 1 + Math.sin(t * 0.1) * 0.02 : 1 })) return;
     if (cell) thBubble('二百万字……读不完了……', x, y - h * 1.0, Math.round(h * 0.1), 0.85); else if (u > 0.35) thBubble('第 1,048,576 字……', x, y - h * 1.0, Math.round(h * 0.1), 0.8); },
 });
+Object.assign(THV, {      // 第 79 圈：千问开 N 个小代理（打开电脑打个响指蹦出小代理 → 五个小代理扛着快递排队走 → 全部宕机堆成一堆，本体冒汗）
+  agents(s, x, y, h, R) { const t = s.f, P = 480, u = (t % P) / P, cell = R.ko ? 2 : u < 0.3 ? 0 : u < 0.72 ? 1 : 2, n = 'th_qwen_agents_' + cell, im = IM['t:' + n], hh = im ? h * im.height / 360 : h;
+    const q = cell === 1 ? (u - 0.3) / 0.42 : 0, mx = cell === 1 ? x - h * 0.6 + q * h * 1.6 : x, my = cell === 1 ? -Math.abs(Math.sin(t * 0.35)) * h * 0.04 : 0;
+    if (!thSpr(n, mx, y + my, hh, { dim: 0.74, rot: cell === 2 && R.big ? Math.sin(t * 0.8) * 0.03 : 0 })) return;
+    if (cell === 0 && u > 0.08) thBubble(u < 0.19 ? '开 5 个小代理！' : '交给你们啦～', x - h * 0.15, y - h * 1.08, Math.round(h * 0.1), 0.85);
+    else if (cell === 1) thBubble(Math.floor(t / 40) % 2 ? '收到！' : '在跑了在跑了', mx, y - hh * 1.25, Math.round(h * 0.09), 0.8);
+    else if (cell === 2) thBubble(R.big ? '别打了！代理又宕机了！' : '代理……全宕机了……', x + h * 0.2, y - h * 1.08, Math.round(h * 0.09), 0.85); },
+});
 const TH_SET = {      // 每个舞台 2–3 组：[类型, x, y(脚底), h]；画在场地之后、人之前（中景）。用户 17:03：池塘 = 抢饭 + 上香；办公室 = 摸鱼甩锅 + 宠溺；天台 / 会议室 = 降智小孩、拎起吊打、伏地打枪、吃饱跳舞
   waterside: [['pond', 1050, 748, 92], ['incense', 1790, 712, 150]],
   office: [['slack', 1660, 790, 250], ['pet', 400, 690, 135]],
   meeting: [['beat', 470, 700, 205], ['kid', 1560, 700, 140]],
   rooftop: [['gun', 1700, 775, 150], ['dance', 420, 720, 140]],
-  fishplanet: [['dance', 330, 770, 100]],
+  fishplanet: [['dance', 330, 770, 100], ['agents', 1660, 770, 175]],
   nextdoor: [['scroll', 420, 800, 150], ['flip', 1720, 790, 150]],
   interview: [['tea', 360, 780, 170], ['play', 1560, 790, 110]],
 };

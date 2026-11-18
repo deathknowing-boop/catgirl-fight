@@ -236,3 +236,29 @@ function drawClear(t, o) { loadLazy('arc');
     txt('按 Enter 回到标题', 960, 1000, { size: 36, w: 800, fill: '#fff', align: 'center', a: k * (0.6 + 0.4 * Math.sin(t * 6)) }); }
   if (t < CLEAR_LEN - 2) txt('Enter 下一页', 1880, 1060, { size: 22, w: 600, fill: 'rgba(255,255,255,0.6)', align: 'right' });
 }
+// —— 第 79 圈：舞台选择（P5 拼贴卡片）——
+function stgImgDraw(id, x, y, w, h, home) {      // 舞台底图按 cover 方式填满 (x,y,w,h)；精简版没有池塘底图时画一块夜色兜底
+  const sid = id === 'auto' ? home : id, im = sid && IM['g:' + sid];
+  if (im && im.width) { const k = Math.max(w / im.width, h / im.height), sw = w / k, sh = h / k; g.drawImage(im, (im.width - sw) / 2, Math.min(im.height - sh, (im.height - sh) * 0.35), sw, sh, x, y, w, h); }
+  else { g.fillStyle = lg(0, y, 0, y + h, ['#24346E', '#0B1230', '#05070F']); g.fillRect(x, y, w, h); g.fillStyle = 'rgba(255,240,200,0.9)'; g.beginPath(); g.arc(x + w * 0.72, y + h * 0.28, h * 0.1, 0, 7); g.fill(); g.fillStyle = '#C0283A'; g.fillRect(x + w * 0.2, y + h * 0.45, w * 0.18, h * 0.05); g.fillRect(x + w * 0.23, y + h * 0.45, w * 0.025, h * 0.4); g.fillRect(x + w * 0.335, y + h * 0.45, w * 0.025, h * 0.4); }
+}
+function stgPath(x, y, w, h, sk) { g.beginPath(); g.moveTo(x + sk, y); g.lineTo(x + w + sk, y); g.lineTo(x + w - sk, y + h); g.lineTo(x - sk, y + h); g.closePath(); }      // 斜切的平行四边形
+function drawStageSel(t, o) {
+  const L = o.L, cur = L[o.i], home = HOME[o.p2] || 'office', u = t - (o.ti || 0), ink = '#E8203A';
+  g.fillStyle = '#0B0710'; g.fillRect(0, 0, W, H); P5.panelBg(1300, 420, ink, ink, t);
+  g.save(); g.fillStyle = ink; g.beginPath(); g.moveTo(0, 0); g.lineTo(760, 0); g.lineTo(640, 118); g.lineTo(0, 150); g.closePath(); g.fill(); g.restore();      // 左上红色撕纸标题块
+  txt('选择舞台', 60, 104, { size: 84, w: 900, fill: '#fff', stroke: '#05030C', sw: 10, rot: -0.04, skew: -0.12 }); txt('SELECT STAGE', 790, 74, { size: 34, w: 900, fam: F.en, fill: '#fff', ls: 8, rot: -0.04 });
+  const sl = E.out3(Math.min(1, u / 0.22)), px = 140 + (1 - sl) * 220, py = 190, pw = 1180, ph = 600;
+  g.save(); g.translate(px, py); g.rotate(-0.025); g.fillStyle = '#05030C'; stgPath(-18, -18, pw + 36, ph + 36, 40); g.fill(); g.fillStyle = '#fff'; stgPath(-8, -8, pw + 16, ph + 16, 40); g.fill();
+  stgPath(0, 0, pw, ph, 40); g.save(); g.clip(); g.globalAlpha = 0.4 + 0.6 * sl; stgImgDraw(cur.id, -40, 0, pw + 80, ph, home); g.restore(); g.restore();      // 大预览：黑白双框 + 斜切
+  const no = String(o.i).padStart(2, '0'); txt('No.' + no, 120, 900, { size: 120, w: 900, fam: F.en, fill: ink, stroke: '#05030C', sw: 12, rot: -0.05, a: sl });
+  txt(cur.id === 'auto' ? '主场（跟着对手走）' : STAGES[cur.id].name, 470, 880, { size: 62, w: 900, fill: '#fff', stroke: '#05030C', sw: 10, rot: -0.03, a: sl });
+  if (cur.id === 'auto') txt('这一场：' + STAGES[home].name.split(' · ')[0] + '　每场换成对手的主场', 476, 940, { size: 30, w: 800, fill: '#FFD0D6', stroke: '#05030C', sw: 6, a: sl });
+  const n = L.length, cw = 222, ch = 132, gap = 24, x0 = 1400, y0 = 190;      // 右侧竖排卡片
+  for (let k = 0; k < n; k++) { const sel = k === o.i, cx = x0 + (k % 2) * (cw + gap) + (sel ? -14 : 0), cy = y0 + Math.floor(k / 2) * (ch + gap + 6) + (k % 2) * 34 - (sel ? 8 : 0), a = sel ? 1 : 0.62;
+    g.save(); g.translate(cx, cy); g.rotate(sel ? -0.06 : (k % 3 - 1) * 0.02); g.globalAlpha = a; g.fillStyle = sel ? ink : '#05030C'; stgPath(-8, -8, cw + 16, ch + 16, 14); g.fill(); g.fillStyle = sel ? '#fff' : '#3A3346'; stgPath(-3, -3, cw + 6, ch + 6, 14); g.fill();
+    stgPath(0, 0, cw, ch, 14); g.save(); g.clip(); stgImgDraw(L[k].id, -14, 0, cw + 28, ch, home); if (!sel) { g.fillStyle = 'rgba(5,3,12,0.35)'; g.fillRect(-14, 0, cw + 28, ch); } g.restore();
+    txt(String(k).padStart(2, '0'), 6, 34, { size: 30, w: 900, fam: F.en, fill: sel ? ink : '#fff', stroke: '#05030C', sw: 6 }); txt(L[k].name, cw - 8, ch - 10, { size: 22, w: 900, fill: '#fff', stroke: '#05030C', sw: 5, align: 'right' }); g.restore(); }
+  if (o.lock != null) { const q = Math.min(1, (t - o.lock) / 0.25); g.save(); g.globalAlpha = q * (t - o.lock < 0.5 ? 1 : Math.max(0, 1 - (t - o.lock - 0.5) * 3)); txt('决定！', 960, 560, { size: 200, w: 900, fill: '#fff', stroke: ink, sw: 18, stroke2: '#05030C', sw2: 34, align: 'center', rot: -0.08, sc: 1.4 - 0.4 * E.out3(q) }); g.restore(); }
+  else txt('← → 选择　J / Enter 决定　' + Math.max(0, Math.ceil(6 - t)) + ' 秒后自动决定', 1880, 1050, { size: 28, w: 800, fill: 'rgba(255,255,255,0.85)', align: 'right' });
+}

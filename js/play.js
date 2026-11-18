@@ -58,9 +58,14 @@ function startPlay() {
         if (ok() && t > S.lock1 + 0.3) { S.lock2 = t + 0.1; G.opp = [S.p2, S.p2, S.p2]; G.stageNo = 1; }
       } else if (S.lock2 == null) {         // 电脑的光标转一圈，停在第一关的对手上
         const n = Math.min(12, Math.floor((t - S.lock1 - 0.45) / 0.09)); if (n > S.hop) { S.hop = n; const pool = ORDER.filter(x => x !== G.p1); S.p2 = n === 12 ? G.opp[0] : pool[(n * 5) % pool.length]; S.t2 = t; sfx('cursor'); if (n === 12) S.lock2 = t + 0.3; }
-      } else { once('snd2', t >= S.lock2, () => sfx('confirm')); if (sk2() === 'a') loadAdult(G.opp[0]); if (t > S.lock2 + 1.1 && adReady()) { if (G.mode === 'train') { newTrain(); return go('fight'); } return startMatch(); } }
+      } else { once('snd2', t >= S.lock2, () => sfx('confirm')); if (sk2() === 'a') loadAdult(G.opp[0]); if (t > S.lock2 + 1.1 && adReady()) { if (!/[?&]stagesel=0/.test(location.search) && typeof drawStageSel === 'function' && typeof stageList === 'function') return go('stage'); if (G.mode === 'train') { newTrain(); return go('fight'); } return startMatch(); } }      // 第 79 圈：选完人先进舞台选择（?stagesel=0 跳过）
       drawSelect(t, { skin1: hasAdult(ORDER[S.cur]) ? G.skin1 : 'q', skin2: S.p2 && hasAdult(S.p2) ? G.skin2 : 'q', p1: ORDER[S.cur], t1: S.t1, lock1: S.lock1, p2: S.p2, t2: S.t2, lock2: S.lock2, play: true, stageNo: S.lock1 != null ? 1 : 0 });
       if (typeof drawOptBar === 'function') drawOptBar(1060, 36, { size: 21 });      // 第 68 圈：配乐 / 难度 / 冷却设置条（原来右下角的「电脑难度 n」文字压在出招表上）
+    } else if (sc === 'stage') {      // 第 79 圈：舞台选择（P5 拼贴卡片）：←→ / ↑↓ 选，J 决定，6 秒自动决定；选的舞台写进 OPT.stage（和 V 键同一个设置）
+      const L = stageList(); if (S.i == null) { S.i = Math.max(0, L.findIndex(x => x.id === OPT.stage)); S.ti = t; }
+      if (S.lock == null) { for (const k of press) { const d = (k === 'ArrowLeft' || k === 'KeyA') ? -1 : (k === 'ArrowRight' || k === 'KeyD') ? 1 : (k === 'ArrowUp' || k === 'KeyW') ? -2 : (k === 'ArrowDown' || k === 'KeyS') ? 2 : 0; if (d) { S.i = (S.i + d + L.length * 2) % L.length; S.ti = t; sfx('cursor'); } } if ((ok() && t > 0.3) || t > 6) { S.lock = t; OPT.stage = L[S.i].id; optSave(); sfx('confirm'); } }
+      else if (t > S.lock + 0.75 && adReady()) { if (G.mode === 'train') { newTrain(); return go('fight'); } return startMatch(); }
+      drawStageSel(t, { L, i: S.i, ti: S.ti, lock: S.lock, p1: G.p1, p2: G.opp[0] });
     } else if (sc === 'vs') {
       drawVS(t, { p1: G.p1, p2: G.opp[G.stageNo - 1], stage: stageOf(), stageNo: G.stageNo, final: G.stageNo === NST(), busy0: 1.5, busy1: 2.7 }); vsExtra(t, { p1: G.p1, p2: G.opp[G.stageNo - 1], stageNo: G.stageNo, total: NST(), rival: isRival() && G.mode !== 'vs1', boss: isBoss(), intrude: G.intrude === G.stageNo && G.mode !== 'vs1' });
       const vsLen = isRival() || isBoss() || G.intrude === G.stageNo ? 6.2 : 3.3; if (G.intrude === G.stageNo) once('s4', t >= 1.6, () => { sfx('smash', 0.7); sfx('ctr', 0.8); }); once('s1', t >= 0.38, () => sfx('vs')); once('s2', t >= 1.5, () => sfx('popup')); if (isBoss()) once('s3', t >= 2.2, () => { sfx('smash', 0.8); vox('ann_ko', 0.6, 'ann'); }); if ((t >= vsLen || (t > 0.6 && ok())) && adReady()) { newRound(); return go('fight'); }

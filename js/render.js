@@ -22,6 +22,7 @@ const SHAKE_OLD = /[?&]shake=old/.test(typeof location !== 'undefined' ? locatio
 const SR21_TILT = -0.32;      // sr21 斜身大约往前倾 18°，摆正用
 const DPALT = { ds: ['sg53', 'sg54'], gpt: ['sg43', 'sg44'] };      // 重 / EX 升龙顶点后：[顶点翻踢, 下落]
 function pose(s, f) {
+  f._rv = 0; f._arc = null;      // 第 79 圈：回身帧（镜像）/ 回旋弧，pose0 的 MSEQ 段设置
   if (s.cine && s.cine.live && typeof LIVE3 !== 'undefined') { const lp = LIVE3.pose(s, f); if (lp) return lp; }      // 第 72 圈：实时三级乱舞接管两个人的帧和位移
   if (typeof MEME !== 'undefined') { const mp = MEME.pose(s, f); if (mp) return mp; }      // D 代理：大肥鱼梗招（处决 / 钢盆狙击 / 转圈舞，js/meme_ds.js）
   const P0 = pose0(s, f); if (NOSIG || !isDPP(f)) return P0; const F = k => fp(f, k); if (!F('sr11')) return P0;
@@ -106,7 +107,7 @@ function pose0(s, f) {
   else if ((f.st === 'down' || f.st === 'ko') && fp(f, 'kd2') && f.y <= 0) { lie = 1; name = (t < 5 ? fp(f, 'kd2') : t < 14 ? fp(f, 'kd3') : fp(f, 'kd4')) || name; if (t < 5) { const q = Math.sin(t / 5 * Math.PI); sy = 1 - 0.16 * q; sx = 1 + 0.1 * q; } }      /* 先砸地压扁 → 弹起 → 躺平（kd 图本身就是躺着画的，弹跳高度照旧） */
   { const mq = (f.st === 'light' || f.st === 'heavy') && f.atk && MSEQ[f.atkK];      /* 第 68 圈（H）：角色专属普通技（ml / mh / mk 图，gtools/norm_prompts.py），有图就盖掉上面的借用帧 */
     if (mq && fp(f, mq[1])) { const A = f.atk, e = A.su + A.ac + 2, nn = t < A.su ? mq[0] : t < e ? mq[1] : (t - e) < A.rc * 0.6 ? mq[2] : null; const n0 = nn && fp(f, nn);
-      name = n0 || stance; rot = 0; skew = 0; sx = 1; sy = 1; dy = 0; dx = 0; smear = null; if (t === A.su && !s.hitstop && fp(f, mq[0])) ghost = { n: fp(f, mq[0]), a: 0.38, dx: -face * 18, sx: 1 }; } }
+      name = n0 || stance; rot = 0; skew = 0; sx = 1; sy = 1; dy = 0; dx = 0; smear = null; if (t === A.su && !s.hitstop && fp(f, mq[0])) ghost = { n: fp(f, mq[0]), a: 0.38, dx: -face * 18, sx: 1 }; const SP = !/[?&]spin=0/.test(location.search) && SPIN[f.id] && SPIN[f.id][f.atkK]; if (SP && t < A.su && t >= Math.floor(A.su * SP.k) && fp(f, mq[0])) { const nb = SP.n && fp(f, SP.n); name = nb || fp(f, mq[0]); f._rv = nb ? 0 : 1; ghost = null; } if (SP && t >= A.su - 1 && t < e + 3) f._arc = { age: t - A.su + 1, typ: SP.arc }; } }      /* 第 79 圈：回身招在起手后半段镜像成背身帧，出手时画回旋弧（SPIN 表） */
   // —— 人才有的动作：蹲、蹲防、蹲攻击、翻滚、投、被抓 ——
   const cr = fp(f, 'crouch2') || fp(f, 'crouch'), crSy = cr ? 1 : 0.72, F = k => fp(f, k); let ay;
   if (f.st === 'crouch' || (f.st === 'block' && f.cblk)) { name = (f.st === 'block' ? F('cguard') : t < 3 ? F('crouch1') : null) || cr || stance; dx = f.st === 'block' ? -face * 6 + (hs ? Math.sin(s.f * 2.9) * 5 : 0) : 0; dy = 0; rot = 0; skew = 0; sx = 1; sy = crSy; }
@@ -170,7 +171,7 @@ function pose0(s, f) {
     if (amp > 0 && age >= 0) { const k = [0.035, 0.05, 0.06][lv - 1] * amp; sx *= 1 + k; sy *= 1 + k; dx += face * [6, 10, 14][lv - 1] * amp; } }
   if (f.skin === 'a') name = adultName(f, name);
   if (ghost && f.skin === 'a') ghost.n = adultName(f, ghost.n);
-  return { name, dx, dy, rot, sx, sy, lie, skew, smear, ay, ghost };
+  return { name, dx, dy, rot, sx, sy, lie, skew, smear, ay, ghost, rev: f._rv, arc: f._arc };
 }
 // 出招时的拖影：直拳一道横线，上勾拳一道上挑的弧，侧踢 / 重击是月牙
 function drawSmear(f, sm, x, yb, h) {
@@ -226,7 +227,7 @@ function drawFighter0(s, f, FL) {
   f.mixK = f.skin !== 'a' && s.F.some(o => o.skin === 'a') && !s.cine ? 1.28 : 1;
   if (f.boss && !s.cine) { f.mixK *= 1.3; glow(f.x, FL - f.y - f.ch.h * 0.7, f.ch.h * 1.1, '#B15CF5', 0.18 + 0.06 * Math.sin(s.f * 0.08)); }      // 第 65 圈：最终头目画面放大 + 紫色气场（判定不变）      // 第 42 圈：GPT 复审「成年打 Q 版拳路高过对方躯干」：混打时 Q 版画面 ×1.28（第 45 圈从 1.16 加到 1.28，两边差不多高；受击框不动）
   const p = pose(s, f), h = hOf(f, p.name), m = META.spr[p.name], wDisp = m.w * h / m.h, x = f.x + p.dx, yb = FL - f.y, flat = isFlat(p.name);
-  const flip = f.face * (NATIVE[p.name] ?? 1) < 0;
+  const flip = (f.face * (NATIVE[p.name] ?? 1) < 0) !== !!p.rev;      // 第 79 圈：p.rev = 回身帧镜像
   // 影子
   drawShadow(s, f, p, FL, h, wDisp);
   let env = (typeof QS !== 'undefined' && QS.get('noenv')) ? null : STAGES[s.stage].env;
@@ -242,6 +243,7 @@ function drawFighter0(s, f, FL) {
   if (f.st === 'sp' && f.mv && /^(dp|dpk|tenshou|fkk|hbutt|tripflash)$/.test(f.mv.id) && f.y > 10 && f.vy > 0) { g.save(); g.lineCap = 'round'; for (let i = 0; i < 7; i++) { const xx = f.x + (hash(i * 3.7 + f.swing) - 0.5) * h * 0.6, L = 80 + hash(i + f.t) * 120, y0 = yb + 20 + ((f.t * 14 + i * 37) % 120); g.strokeStyle = rgba(i % 2 ? '#FFFFFF' : f.ch.col2, 0.55); g.lineWidth = 5; g.beginPath(); g.moveTo(xx, y0); g.lineTo(xx, y0 + L); g.stroke(); } g.restore(); }      // 升龙类：身下往下拉的上升气流线
   // 冲刺残影
   if (f.st === 'dash' || (f.st === 'sp' && f.mv && f.mv.id === 'pounce' && f.y > 0)) for (let i = 2; i >= 1; i--) spr(p.name, x - f.vx / 60 * i * 3.2, yb + p.dy, h, { flip, rot: p.rot, skew: -p.skew, a: 0.24 / i });
+  if (p.arc) spinArc(f, p.arc, x, yb + p.dy, h);      // 第 79 圈：回旋弧
   spFx(s, f, p, x, yb, h, flip, 0);      // 必杀专属特效：身后那一层（上升气流柱、旋风环后半圈、突进残影、地面波纹）
   if (p.ghost && p.ghost.n && META.spr[p.ghost.n]) spr(p.ghost.n, x + p.ghost.dx, yb + p.dy, hOf(f, p.ghost.n), { flip: f.face * (NATIVE[p.ghost.n] ?? 1) < 0, sx: p.ghost.sx, a: p.ghost.a, env });      // 第 35 圈：帧间补间 / 残形（只一层）
   const white = f.flash > 0 && s.f - f.lastDmgF < 2 ? 0.45 : 0, frozen = f.st === 'freeze';      // 挨打只白闪一下，之后露出受击姿势
@@ -299,11 +301,48 @@ function drawFighter0(s, f, FL) {
   if (id === 'pose' && !f.mv.f) { g.save(); g.globalAlpha = 0.7; for (let i = 0; i < 4; i++) { const an = t * 0.12 + i * Math.PI / 2; star4(f.x + Math.cos(an) * h * 0.4, yb - h * 0.6 + Math.sin(an) * h * 0.3, 18, an, i % 2 ? '#FFD84D' : '#FF7AA8', 0.9); } g.restore(); txt('咔嚓～', f.x, yb - h - 24, { size: 26, w: 900, fill: '#FF7AA8', stroke: '#fff', sw: 6, align: 'center' }); }      // 摆拍架势：身边转着小星星
   if (id === 'axe' || id === 'revenge') { const t0 = id === 'axe' ? 22 : 12; if (t >= t0 && t < t0 + 12) { const k = (t - t0) / 12; g.save(); g.translate(f.x + face * 60, yb - h * 0.45); g.scale(face, 1); g.globalAlpha = 1 - k; g.fillStyle = lg(0, -300, 300, 200, ['#FFF3B0', '#FF5A6E']); g.beginPath(); g.arc(0, 0, 330, -1.9, 0.9); g.arc(-50, 20, 270, 0.75, -1.75, true); g.closePath(); g.fill(); g.restore(); } }
   if (id === 'scroll' && f.mv.len) { const len = f.mv.len * (t < 46 ? 1 : 1 - clamp((t - 46) / 14)), x0 = f.x + face * 40, x1 = x0 + face * len; g.save(); g.fillStyle = '#FFFDF4'; g.strokeStyle = '#8A7A5A'; g.lineWidth = 4; g.beginPath(); g.rect(Math.min(x0, x1), FL - 26, Math.abs(x1 - x0), 34); g.fill(); g.stroke(); g.strokeStyle = 'rgba(90,100,150,0.55)'; g.lineWidth = 3; for (let i = 0; i < 3; i++) { g.beginPath(); g.moveTo(Math.min(x0, x1) + 14, FL - 18 + i * 9); g.lineTo(Math.max(x0, x1) - 30, FL - 18 + i * 9); g.stroke(); } g.fillStyle = '#F3E9CF'; g.beginPath(); g.arc(x1, FL - 9, 26, 0, 7); g.fill(); g.stroke(); g.restore(); }
+  if (id === 'beam' && t >= 2 && t < 72 && !/[?&]fan=0/.test(location.search)) gptFan(s, f, yb, t, face);      // 第 79 圈：GPT 光束改扇形多束（主光束后面四条细激光扫动 + 手前法阵 + 起手聚光），?fan=0 关
   if (id === 'beam' && f.mv.on) { const x0 = f.x + face * 70, y0 = yb - 340, hh = 230, x1 = face > 0 ? 2300 : -200; g.save(); g.fillStyle = lg(0, y0, 0, y0 + hh, ['rgba(142,124,240,0)', 'rgba(228,222,255,0.95)', '#FFFFFF', 'rgba(228,222,255,0.95)', 'rgba(142,124,240,0)']); g.fillRect(Math.min(x0, x1), y0, Math.abs(x1 - x0), hh);
     g.beginPath(); g.rect(Math.min(x0, x1), y0 + 30, Math.abs(x1 - x0), hh - 60); g.clip(); const L = ['好的！以下是我的回答，共分为三个部分：', '一、首先……  二、其次……  三、最后……', '综上所述，需要注意以下几点：1. 2. 3.']; for (let i = 0; i < 3; i++) { const sp = 900 + i * 260, w0 = 1500, off = ((s.f * sp / 60 + i * 400) % w0); for (let k = -1; k < 3; k++) txt(L[i], face > 0 ? x0 + off + (k - 1) * w0 : x0 - off - (k - 1) * w0, y0 + 84 + i * 50, { size: 38, w: 800, fill: '#3E2FA8', align: face > 0 ? 'left' : 'right' }); } g.restore(); glow(x0, y0 + hh / 2, 200, '#B9AEFF', 0.7); }
   if (id === 'lock') { const op = s.F[1 - f.idx], oy = FL - op.y - op.ch.h * 0.5, pct = f.mv.pct || 0, r = 150 - pct * 0.7; g.save(); g.translate(op.x, oy); g.strokeStyle = pct >= 100 ? '#FF5A6E' : '#6FA8FF'; g.lineWidth = 6; g.beginPath(); g.arc(0, 0, r, 0, 7); g.stroke(); g.rotate(s.f * 0.06); for (let i = 0; i < 4; i++) { g.rotate(Math.PI / 2); g.beginPath(); g.moveTo(r - 24, 0); g.lineTo(r + 30, 0); g.stroke(); } g.restore(); txt('置信度 ' + Math.floor(pct) + '%', op.x, oy - r - 22, { size: 40, w: 900, fill: '#fff', stroke: '#0E1430', sw: 8, align: 'center' });
     if (f.mv.fire && s.f - f.mv.fire < 16) { const k = (s.f - f.mv.fire) / 16, y0 = yb - h * 0.55; g.save(); g.globalAlpha = 1 - k; g.strokeStyle = '#fff'; g.lineWidth = 46 * (1 - k) + 6; g.lineCap = 'round'; g.beginPath(); g.moveTo(f.x + face * 60, y0); g.lineTo(op.x, oy); g.stroke(); g.strokeStyle = '#6FA8FF'; g.lineWidth = 90 * (1 - k); g.globalAlpha = 0.45 * (1 - k); g.stroke(); g.restore(); } }
   if (id === 'drop' && f.mv.x !== undefined && t < 44) { g.save(); g.translate(f.mv.x, FL + 4); g.scale(1, 0.22); g.strokeStyle = '#FF5A6E'; g.lineWidth = 10; g.setLineDash([26, 16]); g.lineDashOffset = -s.f * 3; g.beginPath(); g.arc(0, 0, 200, 0, 7); g.stroke(); g.restore(); txt('▼', f.mv.x, FL - 560 + Math.sin(s.f * 0.4) * 12, { size: 60, w: 900, fill: '#FF5A6E', stroke: '#fff', sw: 8, align: 'center' }); }
+}
+function clStorm(s, f, yb, h, u, front) {      // 第 79 圈：Claude「逐条回复」十键全对的收尾：身后升起一本发光巨书翻页，几十张书页横扫全屏，对手脚下一道橙白光柱
+  if (u < 0 || u > 44) return; const fc = f.face, op = s.F[1 - f.idx], FL = yb + f.y, out = u > 24 ? Math.max(0, 1 - (u - 24) / 10) : 1;
+  if (!front) {
+    const k = E.out3(Math.min(1, u / 10)), bx = f.x - fc * 200, by = yb - h - 110 - 70 * k, W = 300 * (0.6 + 0.4 * k), H = 250 * (0.6 + 0.4 * k);
+    g.save(); g.globalAlpha = 0.92 * out * Math.min(1, u / 4); g.translate(bx, by);
+    g.globalCompositeOperation = 'lighter'; g.fillStyle = rg(0, 0, 0, W * 1.5, ['rgba(255,190,110,0.75)', 'rgba(232,116,59,0.3)', 'rgba(232,116,59,0)']); g.fillRect(-W * 1.6, -W * 1.6, W * 3.2, W * 3.2); g.globalCompositeOperation = 'source-over';
+    for (const sd of [-1, 1]) { g.fillStyle = '#7A2E0C'; g.beginPath(); g.moveTo(0, H * 0.06); g.lineTo(sd * W * 1.04, -H * 0.02); g.lineTo(sd * W * 1.04, H * 1.02); g.lineTo(0, H * 1.1); g.closePath(); g.fill();      // 封皮
+      g.fillStyle = '#FFF6E6'; g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(sd * W * 0.5, -H * 0.12, sd * W, -H * 0.06); g.lineTo(sd * W, H * 0.96); g.quadraticCurveTo(sd * W * 0.5, H * 0.9, 0, H); g.closePath(); g.fill();      // 书页
+      g.strokeStyle = 'rgba(122,46,12,0.35)'; g.lineWidth = 5; for (let i = 0; i < 7; i++) { const yy = H * (0.14 + i * 0.11); g.beginPath(); g.moveTo(sd * W * 0.12, yy - H * 0.04); g.lineTo(sd * W * (0.86 - (i === 6 ? 0.3 : 0)), yy - H * 0.05); g.stroke(); } }
+    const fl = (u % 6) / 6, sx = Math.cos(fl * Math.PI); g.save(); g.scale(sx, 1); g.fillStyle = sx > 0 ? '#FFFFFF' : '#FFE9D2'; g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(W * 0.5, -H * 0.2, W, -H * 0.1); g.lineTo(W, H * 0.92); g.quadraticCurveTo(W * 0.5, H * 0.84, 0, H); g.closePath(); g.fill(); g.restore();      // 正在翻的那一页
+    g.strokeStyle = '#E8743B'; g.lineWidth = 6; g.beginPath(); g.moveTo(0, 0); g.lineTo(0, H); g.stroke(); g.restore();
+    return; }
+  g.save(); g.globalAlpha = out;
+  if (u >= 3 && u < 26) { const k = (u - 3) / 23, W0 = 150 * (1 - k * 0.5) * Math.min(1, (u - 3) / 3); g.save(); g.globalCompositeOperation = 'lighter'; g.fillStyle = lg(op.x - W0, 0, op.x + W0, 0, ['rgba(232,116,59,0)', 'rgba(255,170,90,0.7)', 'rgba(255,255,255,0.95)', 'rgba(255,170,90,0.7)', 'rgba(232,116,59,0)']); g.fillRect(op.x - W0, FL - 1400, W0 * 2, 1400); g.restore(); }      // 光柱
+  for (let i = 0; i < 46; i++) { const r1 = hash(i * 1.37), r2 = hash(i * 2.91), r3 = hash(i * 5.13), u0 = Math.floor(r1 * 10), v = u - u0; if (v < 0) continue;
+    const x0 = f.x - fc * 150, x = x0 + fc * v * (70 + r2 * 70), y = yb - 380 + (r3 - 0.5) * 700 + Math.sin(v * 0.3 + i) * 40 + v * (r1 - 0.5) * 8, sc = 0.7 + r2 * 0.8; if (Math.abs(x - x0) > 2600) continue;
+    g.save(); g.translate(x, y); g.rotate((r3 - 0.5) * 1.2 + v * 0.15 * (r1 - 0.5)); g.scale(sc * Math.cos(v * 0.35 + i), sc); g.fillStyle = '#FFFDF4'; g.strokeStyle = '#E8743B'; g.lineWidth = 3; g.beginPath(); g.rect(-24, -32, 48, 64); g.fill(); g.stroke(); g.fillStyle = 'rgba(122,46,12,0.45)'; for (let j = 0; j < 4; j++) g.fillRect(-16, -20 + j * 12, j === 3 ? 18 : 32, 4); g.restore(); }      // 书页风暴
+  g.restore();
+}
+function gptFan(s, f, yb, t, face) {      // 第 79 圈：GPT「好的！以下是……」扇形多束激光（只画，判定不变）
+  const x0 = f.x + face * 70, cy = yb - 225, on = t >= 8 && t < 68, a = on ? Math.min(1, (t - 8) / 5) * Math.min(1, (68 - t) / 6) : 0;
+  g.save(); g.globalCompositeOperation = 'lighter';
+  if (t < 12) { const k = Math.min(1, t / 8); for (let i = 0; i < 12; i++) { const an = i * 0.5236 + t * 0.05, r0 = 260 * (1 - k) + 30, r1 = r0 + 90 * (1 - k * 0.6); g.strokeStyle = rgba('#E4DEFF', t < 8 ? 0.85 : 0.85 * (1 - (t - 8) / 4)); g.lineWidth = 3; g.beginPath(); g.moveTo(x0 + Math.cos(an) * r1, cy + Math.sin(an) * r1); g.lineTo(x0 + Math.cos(an) * r0, cy + Math.sin(an) * r0); g.stroke(); } glow(x0, cy, 70 + 60 * k, '#B9AEFF', 0.5 + 0.4 * k); }      // 起手：十二条光线往手心收
+  if (a > 0) {
+    const B = [[-3, 0.33, 40], [-2, 0.21, 54], [-1, 0.11, 64], [1, -0.11, 64], [2, -0.21, 54], [3, -0.33, 40]];
+    for (const [i, base, w] of B) { const ang = base * (0.55 + 0.45 * Math.min(1, (t - 8) / 14)) + Math.sin(t * 0.11 + i * 1.7) * 0.035, wk = w * (0.8 + 0.2 * Math.sin(t * 0.7 + i)); g.save(); g.translate(x0, cy); g.scale(face, 1); g.rotate(ang); g.globalAlpha = a * 0.8;
+      g.fillStyle = lg(0, -wk, 0, wk, ['rgba(110,80,255,0)', 'rgba(120,90,255,0.75)', [0.44, 'rgba(200,190,255,0.95)'], [0.5, '#FFFFFF'], [0.56, 'rgba(200,190,255,0.95)'], 'rgba(120,90,255,0.75)', 'rgba(110,80,255,0)']); g.beginPath(); g.moveTo(90, -3); g.lineTo(2600, -wk); g.lineTo(2600, wk); g.lineTo(90, 3); g.closePath(); g.fill();
+      g.strokeStyle = '#FFFFFF'; g.lineWidth = 2.5; g.globalAlpha = a; g.beginPath(); g.moveTo(10, 0); g.lineTo(2600, 0); g.stroke();
+      g.fillStyle = '#FFFFFF'; for (let k = 0; k < 7; k++) { const u = ((s.f * 38 + k * 380 + i * 97) % 2600); g.globalAlpha = a * 0.9; g.fillRect(u, -3, 46, 6); }
+      g.restore(); }
+    g.save(); g.translate(x0, cy); g.scale(0.34 * face, 1); g.globalAlpha = a; g.strokeStyle = '#E4DEFF'; g.lineWidth = 5; for (const [R, sp] of [[150, 0.08], [112, -0.13]]) { g.save(); g.rotate(s.f * sp); g.beginPath(); g.arc(0, 0, R, 0, 7); g.stroke(); for (let k = 0; k < 12; k++) { g.rotate(Math.PI / 6); g.beginPath(); g.moveTo(R - 12, 0); g.lineTo(R + 12, 0); g.stroke(); } g.restore(); } g.restore();      // 手前法阵（侧面压扁的两圈刻度环）
+    for (let k = 0; k < 3; k++) { const yy = cy - 120 + k * 120; txt(String(k + 1), x0 - face * 6, yy, { size: 34, w: 900, fam: F.en, fill: rgba('#FFFFFF', a), stroke: rgba('#3E2FA8', a * 0.8), sw: 6, align: 'center' }); }      // 一、二、三
+    glow(x0 + face * 60, cy, 150, '#B9AEFF', 0.3 * a);
+  }
+  g.restore();
 }
 // —— 飞行物 ——
 function drawPillar(x, FL, w, t, a, tint) {      // 炸毛光柱：紫白光柱 + 往上飘的毛 + 地上一圈
@@ -1324,7 +1363,7 @@ const SIGFX = {
     ucounter: (s, f, yb, h, front) => SIGFX.claude.counter(s, f, yb, h, front),
     paper2: (s, f, yb, h, front) => { if (!front || f.t < 7 || f.t > 20) return; const q = (f.t - 7) / 13; SGX('sg_pages', f.x + f.face * h * (0.4 + 0.3 * q), yb - h * 0.5, h * (0.6 + 0.4 * q), 0, (1 - q) * 0.9, f.face < 0); },
     phonegrab: (s, f, yb, h, front) => { const M = f.mv; if (!front || !M.got) return; const v = f.t - M.got - 24; if (v >= 0 && v < 16) SGX('sg_petals', f.x + f.face * h * 0.5, yb - h * 0.6, h * (0.7 + v / 16), 0, 1 - v / 16, false); },
-    drave: (s, f, yb, h, front) => { const M = f.mv; if (!front || !M.got || M.fin != null) return; const u = (f.t - M.got) % 8; if (u < 5) SGX('sg_pages', f.x + f.face * h * 0.55, yb - h * 0.55, h * 0.6, hash(Math.floor((f.t - M.got) / 8)) * 2, 1 - u / 5, f.face < 0); },
+    drave: (s, f, yb, h, front) => { const M = f.mv; if (M.got && M.fin != null && !M.miss && !/[?&]storm=0/.test(location.search)) clStorm(s, f, yb, h, f.t - M.fin, front);      /* 第 79 圈：十键全对 = 召唤巨书 + 全屏书页风暴，?storm=0 关 */ if (!front || !M.got || M.fin != null) return; const u = (f.t - M.got) % 8; if (u < 5) SGX('sg_pages', f.x + f.face * h * 0.55, yb - h * 0.55, h * 0.6, hash(Math.floor((f.t - M.got) / 8)) * 2, 1 - u / 5, f.face < 0); },
   },
   kimi: {
     moon: (s, f, yb, h, front) => { if (!front || f.t < 6 || f.t > 16) return; const q = (f.t - 6) / 10; SGX('sg_moons', f.x + f.face * h * 0.42, yb - h * 0.55, h * (0.42 + 0.22 * q), q * 2, Math.sin(Math.min(1, q * 1.6) * Math.PI * 0.5) * (1 - q * q), false); },      // 第 68 圈（GPT r67 第二轮）：月环只在出手蓄能时出现（波 t=14 生成后两步就收掉），不再绕着飞行中的波头
@@ -1816,6 +1855,13 @@ function seqAt(Q, A, t) {      // 返回 { i 当前帧号, prev 上一帧号, fr
   const at = u => { if (u < A.su) { let acc = 0; for (let k = 0; k < Q.s.length; k++) { acc += Q.sw[k] * A.su; if (u < acc - 1e-6) return Q.s[k]; } return Q.s[Q.s.length - 1]; }
     if (u < A.su + A.ac) return Q.a; const R = Math.max(1, A.rc * Q.re); let acc = A.su + A.ac; for (let k = 0; k < Q.r.length; k++) { acc += Q.rw[k] * R; if (u < acc - 1e-6) return Q.r[k]; } return Q.re < 1 ? 0 : Q.r[Q.r.length - 1]; };
   const i = at(t), p = t > 0 ? at(t - 1) : 0; return { i: i || Q.r[Q.r.length - 1], prev: p, fresh: i !== p && p > 0, done: !i };
+}
+const SPIN = { ds: { slp: { k: 0.4, arc: 'fist', n: 'mlb' } }, gpt: { shk: { k: 0.4, arc: 'foot', n: 'mkb' }, fhk: { k: 0.4, arc: 'foot', n: 'mkb' }, bhk: { k: 0.4, arc: 'foot', n: 'mkb' } } };      // 第 79 圈：反手拳 / 回旋踢：k = 起手到几成开始背身，n = 专门的背身帧（没有就把起手帧镜像）
+function spinArc(f, A, x, yb, h) {      // 回旋弧：从背后绕过来的一道宽弧（拳 = 胸口高度的扁弧，脚 = 腰到头高的斜大弧），白芯 + 角色副色
+  const k = A.age / 8; if (k < 0 || k > 1) return; const face = f.face, foot = A.typ === 'foot', cy = yb - h * (foot ? 0.5 : 0.5), R = h * (foot ? 0.6 : 0.46), ry = foot ? 0.55 : 0.28, a0 = foot ? -2.6 : -2.9, a1 = foot ? 0.15 : 0.2, sweep = a0 + (a1 - a0) * Math.min(1, k * 2.2);
+  g.save(); g.translate(x, cy); g.scale(face, ry); g.rotate(foot ? -0.35 : 0); g.lineCap = 'round'; g.globalAlpha = (1 - k) * 0.95;
+  for (const [w, c] of [[h * 0.16, rgba(f.ch.col, 0.35)], [h * 0.08, rgba(f.ch.col2, 0.85)], [h * 0.025, '#FFFFFF']]) { g.strokeStyle = c; g.lineWidth = w / ry * 0.5; g.beginPath(); g.arc(0, 0, R, Math.max(a0, sweep - 1.9), sweep); g.stroke(); }
+  g.restore();
 }
 const MSEQ = { slp: ['ml1', 'ml2', 'ml2'], slk: ['ml3', 'ml4', 'ml3'], shp: ['mh1', 'mh2', 'mh3'], shpc: ['mh1', 'mh4', 'mh4'], shk: ['mk1', 'mk2', 'mk3'], fhk: ['mk1', 'mk2', 'mk3'], bhk: ['mk1', 'mk2', 'mk3'], shkc: ['mk1', 'mk4', 'mk4'], chp: ['mc3', 'mc4', 'ms4'], kchp: ['mc3', 'mc4', 'ms4'], kshp: ['mh1', 'mh2', 'mh3'], kshk: ['mk1', 'mk2', 'mk3'], gstep: ['mk1', 'mk2', 'mk3'], gelb: ['mh1', 'mh4', 'mh4'] };      // 第 69 圈（H2）：加对空 chp / Kimi 长手 / GLM 踏步踢、回身肘
 const CSEQ = { clp: ['-', 'mc1', '-'], clk: ['-', 'mc2', '-'], chk: ['ms1', 'ms2', 'ms3'], sweep: ['ms1', 'ms2', 'ms3'] };      // 第 69 圈（H2）：蹲攻击 [起手, 命中, 收招]，'-' = 蹲姿      // 第 68 圈：专属普通技 [起手, 命中, 收招]
